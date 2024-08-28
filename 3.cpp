@@ -3,10 +3,10 @@
 using namespace std;
 int main()
 {
-	int a = creat("FD",0644);
+	int a = creat("FD",0777);
 		if(a==-1) 
-			cout<<"error";
+			cout<<"error while creation, please try again";
 		else 
-			cout<<"created";
+			cout<<"file creation completed";
 	cout<<a;
 }
