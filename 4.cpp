@@ -1,3 +1,14 @@
+/*
+========================================================================================================
+
+Name: 4
+Author: Prajyot Shende
+Description: Write a program to open an existing file with read write mode. Try O_EXCL flag also.
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include <iostream>
 #include <cstdlib>
 #include <fcntl.h>
@@ -24,4 +35,13 @@ int main()
  
 } 
 
+/*
+========================================================================================================
+Output:
 
+./a.out
+File careation completed
+File not opened, so O_EXCL worked properly
+
+========================================================================================================
+*/

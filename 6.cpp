@@ -1,6 +1,21 @@
-#include<bits/stdc++.h>
+/*
+========================================================================================================
+
+Name: 6
+Author: Prajyot Shende
+Description: Write a program to take input from STDIN and display on STDOUT. Use only read/write system calls
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
+#include <iostream>
+#include <unistd.h>
+#include <fcntl.h>
 using namespace std;
-int main(){
+int main()
+{	
+	cout<<"Write something less than 20 bits."<<endl;
 	char a[20];
 	int s = read(0,a,20);
 	if(s==-1) cout<< "errorrrrrrrrrrrr"<<endl;
@@ -12,4 +27,15 @@ int main(){
 
 
 
+/*
+========================================================================================================
+Output:
 
+./a.out
+Write something less than 20 bits.
+dasdasdw
+9 bites read properly so chill
+dasdasdw
+
+========================================================================================================
+*/

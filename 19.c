@@ -1,3 +1,14 @@
+/*
+========================================================================================================
+
+Name: 19
+Author: Prajyot Shende
+Description: Write a program to find out time taken to execute getpid system call. Use time stamp counter.
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
@@ -22,4 +33,14 @@ int main()
 }
 	
 
+/*
+========================================================================================================
+Output:
 
+/a.out
+ID of the process is 11374
+The Used Fnct takes 42349 nano seconds to execute
+
+
+========================================================================================================
+*/

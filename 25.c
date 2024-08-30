@@ -1,3 +1,14 @@
+/*
+========================================================================================================
+
+Name: 25
+Author: Prajyot Shende
+Description: Write a program to create three child processes. The parent should wait for a particular child (use waitpid system call).
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include<stdio.h>
 #include<unistd.h>
 #include<sys/wait.h>
@@ -23,7 +34,7 @@ int main()
 			int c = fork();
 			if(!c)
 			{
-				sleep(8);
+				sleep(4);
 				printf("3rd child\n");
 			}
 			else
@@ -34,3 +45,18 @@ int main()
 		}
 	}
 }
+
+
+/*
+========================================================================================================
+Output:
+
+./a.out
+Child 2 waiting for we are
+1st child
+3rd child
+2nd child
+
+
+========================================================================================================
+*/

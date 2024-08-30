@@ -1,3 +1,14 @@
+/*
+========================================================================================================
+
+Name: 12
+Author: Prajyot Shende
+Description Write a program to find out the opening mode of a file. Use fcntl. 
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include<iostream>
 #include<fcntl.h>
 #include<unistd.h>
@@ -5,13 +16,13 @@ using namespace std;
 int main()
 {
         int a = open("12.txt",O_RDWR|O_CREAT,0666);
-	cout<<a<<endl;
+	//cout<<a<<endl;
 	if(a==-1) cout<<"File Creation failed, Error Error, PLease try again Later\n";
         else cout<<"File Created, File opened, File ok\n";
 
 
 	int d = fcntl(a,F_GETFL);
-	cout<<d<<endl;
+	//cout<<d<<endl;
 		
 	if(d==-1)
 	{       
@@ -39,3 +50,14 @@ int main()
     return 0;
 }
 
+
+/*
+========================================================================================================
+Output:
+
+./a.out
+File Created, File opened, File ok
+both rd and write
+
+========================================================================================================
+*/

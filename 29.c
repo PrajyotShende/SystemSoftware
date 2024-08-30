@@ -1,3 +1,15 @@
+/*
+========================================================================================================
+
+Name: 29
+Author: Prajyot Shende
+Description: Write a program to get scheduling policy and modify the scheduling policy (SCHED_FIFO, SCHED_RR).
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
+
 #include<stdio.h>
 #include<unistd.h>
 #include<sched.h>
@@ -63,3 +75,21 @@ int main()
         else if (s2==SCHED_RR) printf("Current Scheduling Policy is RR");
         else if (s2==SCHED_OTHER) printf("Current Scheduling Policy is SCHED_OTHER");
 }
+
+
+/*
+========================================================================================================
+Output:
+
+sudo ./a.out
+[sudo] password for prajyot-shende:
+Scheduling Policy is SCHED_OTHER
+Give a input to change policy
+1 for Changing to FIFO
+2 for Changing to RR
+3 for Changing to OTHER
+2
+Current Scheduling Policy is RR
+
+========================================================================================================
+*/

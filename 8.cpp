@@ -1,4 +1,15 @@
-#include <bits/stdc++.h>
+/*
+========================================================================================================
+
+Name: 8
+Author: Prajyot Shende
+Description: Write a program to open a file in read only mode, read line by line and display each line as it is read. Close the file when end of file is reached.
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
+#include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
 using namespace std;
@@ -36,3 +47,26 @@ int main(){
 	}
 close(read1);	
 }
+
+
+
+/*
+========================================================================================================
+Output:
+
+cat read_linebyline.txt 
+Pehela lin
+Second Line
+Tisri lineeeee
+ichi ni san shi
+
+
+./a.out
+Pehela lin
+Second Line
+Tisri lineeeee
+ichi ni san shi
+File reading Completd Succesfully, no problems occured
+
+========================================================================================================
+*/

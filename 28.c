@@ -1,3 +1,14 @@
+/*
+========================================================================================================
+
+Name: 28
+Author: Prajyot Shende
+Description: Write a program to get maximum and minimum real time priority.
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include<stdio.h>
 #include<sched.h>
 int main()
@@ -11,3 +22,16 @@ int main()
 	printf("RR max priority is %d\n", ROUND_ROBIN_PRIORITY_MAX);
 	printf("RR min priority is %d\n", ROUND_ROBIN_PRIORITY_MIN);
 }
+
+/*
+========================================================================================================
+Output:
+
+./a.out
+FIFO max priority is 99
+FIFO min priority is 1
+RR max priority is 99
+RR min priority is 1
+
+========================================================================================================
+*/

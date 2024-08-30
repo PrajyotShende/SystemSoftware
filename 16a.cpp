@@ -1,3 +1,16 @@
+/*
+========================================================================================================
+
+Name: 16a
+Author: Prajyot Shende
+Description: Write a program to perform mandatory locking.
+	a. Implement write lock
+	b. Implement read lock
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
 #include<sys/file.h>
 #include<iostream>
 #include<fcntl.h>
@@ -31,3 +44,24 @@ int main()
 
 }
 
+
+/*
+========================================================================================================
+Output:
+
+terminal 1:
+./a.out file1.txt
+Trying To Acquire Write Lock. Please stand by......
+Acquired Write Lock. Press Enter to Exit.
+
+terminal 2:
+./a.out file1.txt
+Trying To Acquire Write Lock. Please stand by......
+
+terminal 3:
+./a.out file1.txt
+Trying To Acquire Read Lock. PLEASE STAND BY.......
+
+
+========================================================================================================
+*/

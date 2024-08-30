@@ -1,10 +1,25 @@
+/*
+========================================================================================================
+
+Name: 11
+Author: Prajyot Shende
+Description:Write a program to open a file, duplicate the file descriptor and append the file with both the descriptors and check whether the file is updated properly or not.
+	a. use dup
+	b. use dup2
+	c. use fcntl 
+Date: 29th August, 2024
+
+========================================================================================================
+*/
+
+
 #include<iostream>
 #include<fcntl.h>
 #include<unistd.h>
 using namespace std;
 int main()
 {
-	int a = open("11.txt",O_CREAT|O_RDWR,0777);
+	int a = open("11.txt",O_CREAT|O_RDWR,0644);
         if(a==-1) cout<<"Error in Creating File, please try again later\n";
         else cout<<"File Opened successfully, for now atleast\n";
 
@@ -49,4 +64,27 @@ int main()
 	cout<<"If no values printed are -1 then all is good, now just check the filw with cat 11.txt\n";
 }
 
+/*========================================================================================================
+Output:
 
+./a.out
+File Opened successfully, for now atleast
+100
+Wrote succesfully, WE think
+100
+Wrote succesfully, WE think once again
+100
+Wrote succesfully, WE think twice again
+100
+Wrote succesfully, WE think finally
+If no values printed are -1 then all is good, now just check the filw with cat 11.txt
+
+
+cat 11.txt
+Real thing to be inserted in real fil descript(a)
+Fake thing to be inserted in dupliacte fil descriptor(duplicate)
+Super fake thing
+FCNTL duplicates appending
+
+========================================================================================================
+*/
