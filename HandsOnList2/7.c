@@ -1,3 +1,12 @@
+/*
+========================================================================================================
+Name : 7
+Author : Prajyot Shende
+Description : Write a simple program to print the created thread ids.
+Date: 12 Sept, 2024.
+========================================================================================================
+*/
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,3 +42,16 @@ int main()
         return 0;
 }
 
+
+/*
+========================================================================================================
+Output:
+
+./a.out
+Thread 0 is running has Thread ID :- 140539441706688
+Thread 1 is running has Thread ID :- 140539433313984
+Thread 2 is running has Thread ID :- 140539424921280
+Joining of threads completed
+
+========================================================================================================
+*/

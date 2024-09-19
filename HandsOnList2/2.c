@@ -1,3 +1,12 @@
+/*
+========================================================================================================
+Name : 2
+Author : Prajyot Shende
+Description : Write a program to print the system resource limits. Use getrlimit system call.
+Date: 12 Sept, 2024.
+========================================================================================================
+*/
+
 #include <sys/resource.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,3 +60,52 @@ int main()
 		print(input[i].a, input[i].z);
 	}
 }
+
+
+/*
+========================================================================================================
+Output:
+
+./a.out
+Time Limit of CPU :
+Soft Limit: No Limit for this resource
+Hard Limit: No Limit for this resource
+
+Limit of File SIZE :
+Soft Limit: No Limit for this resource
+Hard Limit: No Limit for this resource
+
+Limits of Data Seg :
+Soft Limit: No Limit for this resource
+Hard Limit: No Limit for this resource
+
+Stack Size limit is  :
+Soft Limit: 8388608
+Hard Limit: No Limit for this resource
+
+Core files size limit is :
+Soft Limit: 0
+Hard Limit: No Limit for this resource
+
+Resident set size :
+Soft Limit: No Limit for this resource
+Hard Limit: No Limit for this resource
+
+Max No. of corresponding Processes :
+Soft Limit: 62515
+Hard Limit: 62515
+
+Max No. of Open files :
+Soft Limit: 1024
+Hard Limit: 1048576
+
+Unaccessible or Locked memory limit is :
+Soft Limit: 2058096640
+Hard Limit: 2058096640
+
+Max Address space :
+Soft Limit: No Limit for this resource
+Hard Limit: No Limit for this resource
+
+========================================================================================================
+*/

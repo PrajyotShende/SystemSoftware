@@ -1,3 +1,12 @@
+/*
+========================================================================================================
+Name : 3
+Author : Prajyot Shende
+Description : Write a program to set (any one) system resource limit. Use setrlimit system call.
+Date: 12 Sept, 2024.
+========================================================================================================
+*/
+
 #include <sys/resource.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,3 +39,24 @@ int main()
         printf("Hard Limit = %lu\n",l.rlim_max);
 	printf("\n");
 }
+
+
+/*
+========================================================================================================
+Output:
+
+a.out
+
+Limits before changing for RLIMIT_NOFILE
+Soft Limit = 1024
+Hard Limit = 1048576
+
+Limits for CPU changed successfully
+
+Limits before changing for RLIMIT_NOFILE
+Soft Limit = 10
+Hard Limit = 10000
+
+
+========================================================================================================
+*/
