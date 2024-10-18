@@ -68,6 +68,7 @@ void connection(int fd)
                             break;
                     default:
                         ptr++;
+                        return;
                         break;
                 }
             }

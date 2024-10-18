@@ -19,10 +19,59 @@ void Modify_Customer_Details(int socket_fd);
 void manage_User_Roles(int socket_fd);
 int lock_Employee(int socket_fd,int fd, int number);
 void unlock_Employee(int socket_fd,int fd, int number);
+int lock_Customer(int socket_fd,int fd, int number);
+void unlock_Customer(int socket_fd,int fd, int number);
 
 
 
 
+
+int lock_Customer(int socket_fd,int fd, int number) 
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct flock Admin_WRITELOCK;
+    Admin_WRITELOCK.l_type = F_WRLCK;
+    Admin_WRITELOCK.l_whence = SEEK_SET;
+    Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
+    Admin_WRITELOCK.l_len = sizeof(struct Customer);
+
+    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+
+    if (locking == -1) 
+    {
+        return 0;
+    }
+    
+    return 1;
+}
+
+void unlock_Customer(int socket_fd,int fd, int number)
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct flock unlock_admin;
+    unlock_admin.l_type = F_UNLCK;
+    unlock_admin.l_whence = SEEK_SET;
+    unlock_admin.l_start = number * sizeof(struct Customer);
+    unlock_admin.l_len = sizeof(struct Customer);
+
+    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+
+    if (unlocking == -1)
+    {
+        printf("Error in unlocking the admin");
+        exit(0);
+    }
+
+
+}
 
 int lock_Employee(int socket_fd,int fd, int number) 
 {
@@ -469,10 +518,166 @@ void Modify_Employee_Details(int socket_fd)
     
 }
 
+
 void Modify_Customer_Details(int socket_fd)
 {
 
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    int fd = open("customers.txt",O_RDWR);
+    if(fd == -1)
+    {
+        perror("Error opening file");
+    }
+
+    struct Customer newcust[100];
+    
+    int b = read(fd,&newcust,sizeof(newcust));
+
+    while(1)
+    {
+            strcpy(write_buffer,"\nEnter Customer Account no :- ");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+            memset(write_buffer, 0, sizeof(write_buffer));
+            read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+            int acc = atoi(read_buffer);
+            if (acc == 0)
+            {
+                strcpy(write_buffer, "\nInvalid account number.%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;  
+            }
+            for(int i=0;i<100;i++)
+            {   
+                
+                if(newcust[i].acc_no == acc)
+                {
+                    int l = lock_Customer(socket_fd,fd, i);
+                    if(l == 0) 
+                    {
+                        strcpy(write_buffer,"\nCannot currently modify Employee ");
+                        strcat(write_buffer,read_buffer);
+                        strcat(write_buffer,"%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
+                        return;
+                    }
+                    memset(read_buffer, 0, sizeof(read_buffer));
+                    while(1)
+                    {
+
+                        strcpy(write_buffer,"\nThese are customer details \nName of Customer :- ");
+                        strcat(write_buffer,newcust[i].customer_name);
+                        
+                        char temp_buffer[10];  
+                        
+                        strcat(write_buffer,"\nAge of Customer :- ");
+                        sprintf(temp_buffer, "%d", newcust[i].age);  
+                        strcat(write_buffer, temp_buffer);
+
+                        temp_buffer[0] = newcust[i].gender;
+                        temp_buffer[1] = '\0';  
+                        strcat(write_buffer, "\nGender of Customer :- ");
+                        strcat(write_buffer, temp_buffer);
+                        strcat(write_buffer, "\n");
+
+                        strcat(write_buffer,"%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                        memset(write_buffer, 0, sizeof(write_buffer));
+
+                        strcpy(write_buffer,"\nWhat do you want to Modify :- \n1. Name\n2. Age\n3. Gender\n4. Exit");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                        memset(write_buffer, 0, sizeof(write_buffer));
+                        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                        int choice = atoi(read_buffer);
+                        memset(read_buffer, 0, sizeof(read_buffer));
+                        switch (choice)
+                        {
+                        case 1:
+                                strcpy(write_buffer,"\nEnter Name of Customer");
+                                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                memset(write_buffer, 0, sizeof(write_buffer));
+                                read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                                strcpy(newcust[i].customer_name,read_buffer);
+                                memset(read_buffer, 0, sizeof(read_buffer));
+                                break;
+                        case 2:
+                                while(1)
+                                {
+                                        strcpy(write_buffer,"\nEnter Customer Age :- ");
+                                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                        memset(write_buffer, 0, sizeof(write_buffer));
+                                        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                                        int age = atoi(read_buffer);
+                                        memset(read_buffer, 0, sizeof(read_buffer));
+                                        if(age>0 && age<101)
+                                        {
+                                            newcust[i].age = age;
+                                            break;
+                                        }
+
+                                        strcpy(write_buffer,"\nInput a valid age%");
+                                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                        memset(write_buffer, 0, sizeof(write_buffer));
+
+                                }
+                                
+                                break;
+                        case 3:
+                                while(1)
+                                {
+
+                                    strcpy(write_buffer,"\nEnter New Employee Gender :- M or F");
+                                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                    memset(write_buffer, 0, sizeof(write_buffer));
+
+                                    read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+
+                                    if(read_buffer[0] == 'M' || read_buffer[0] == 'F')
+                                    {    
+                                        newcust[i].gender = read_buffer[0];
+                                        memset(read_buffer, 0, sizeof(read_buffer));
+                                        break;
+                                    }
+                                    else 
+                                    {
+                                        memset(read_buffer, 0, sizeof(read_buffer));
+                                        strcpy(write_buffer,"\nInvalid Gender. Please enter M or F.% ");
+                                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                        memset(write_buffer, 0, sizeof(write_buffer));
+                                    }
+
+                                }
+                                break;
+                        case 4:
+                                unlock_Customer(socket_fd,fd, i);
+                                return;
+                        default:
+                                strcpy(write_buffer,"\nEnter a Valid choice%");
+                                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                                memset(write_buffer, 0, sizeof(write_buffer));
+                                break;
+                        }
+                        
+                    }
+                }
+            }
+
+            strcpy(write_buffer,"\nNo Customer with Account no. ");
+            strcat(write_buffer,read_buffer);
+            strcat(write_buffer,"%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+            memset(write_buffer, 0, sizeof(write_buffer));
+            memset(read_buffer, 0, sizeof(read_buffer));
+
+    }
+    
+    
 }
+
 
 void manage_User_Roles(int socket_fd)
 {
