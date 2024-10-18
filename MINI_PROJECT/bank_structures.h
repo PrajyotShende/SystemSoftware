@@ -1,5 +1,6 @@
 #ifndef BANK_STRUCTURES_H
 #define BANK_STRUCTURES_H
+#include <stdbool.h>
 
 struct LoginCredentials 
 {
@@ -22,7 +23,10 @@ struct BankEmployee
 
 struct Customer
 {
+    char customer_name[50];
     int acc_no;
+    char gender;
+    int age;
     float balance;
     bool active;
     int loanID;

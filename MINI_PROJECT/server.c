@@ -1,5 +1,6 @@
 #include "common1.h"
 #include "real_admin.h"
+#include "employee.h"
 // #include "admin.h"
 
 int server_fd;
@@ -25,7 +26,7 @@ void connection(int fd)
     {
         
 
-        int write_bytes = write(fd,"\nWho would you like to login as:\n\n1. Admin\n2. Manager\n3. Employee\n4. Customer\n5. Exit\n\nEnter Your Choice",strlen("\nWho would you like to login as:\n\n1. Admin\n2. Manager\n3. Employee\n4. Customer\n5. Exit\n\nEnter Your Choice"));
+        int write_bytes = write(fd,"\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n4. Exit\n\nEnter Your Choice",strlen("\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n4. Exit\n\nEnter Your Choice"));
         
         if(write_bytes == -1)
         {
@@ -54,9 +55,9 @@ void connection(int fd)
                         login_admin(fd);
                         // system("./real_admin");
                         break;
-                    // case 2:
-                    //     employee_operation(fd,2);
-                    //     break;
+                    case 2:
+                        login_employee(fd);
+                        break;
                     // case 3:
                     //     employee_operation(fd,3);
                     //     break;
