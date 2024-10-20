@@ -349,6 +349,7 @@ int Checking_login_credentials2(int socket_fd,const char *input_username, const 
                     strcat(write_buffer,"%");
                     write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
                     memset(write_buffer, 0, sizeof(write_buffer));
+                    unlock_Customer2(socket_fd, fd, i);
                     return 0;
                 }
             } 

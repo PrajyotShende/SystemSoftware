@@ -207,6 +207,7 @@ void add_employee(int socket_fd)
     if(fd == -1)
     {
         perror("Error opening file");
+        return;
     }
 
     // lseek(fd,0,SEEK_END);
@@ -351,12 +352,13 @@ void add_employee(int socket_fd)
     memset(read_buffer, 0, sizeof(read_buffer));
 
     for(int i=0;i<10;i++)
-    new_employee.loan[i] = -1;
-
+    {
+        new_employee.loan[i] = -1;
+    }
     // char employee_data[500];
     // snprintf(employee_data, sizeof(employee_data), "%s %s %s %s %s %d\n",new_employee.employee_name, new_employee.id,new_employee.role, new_employee.username,new_employee.password, new_employee.total_loans);
     // write(fd, employee_data, strlen(employee_data));
-
+    // lseek(fd,0,SEEK_END);
     write(fd,&new_employee,sizeof(new_employee));
 
     strcpy(write_buffer,"\n\n New Employee Added Successfully%");
@@ -493,6 +495,8 @@ void Modify_Employee_Details(int socket_fd)
                                 }
                                 break;
                         case 4:
+                                lseek(fd, i*sizeof(struct BankEmployee), SEEK_SET);
+                                write(fd, &new[i], sizeof(struct BankEmployee));
                                 unlock_Employee(socket_fd,fd, i);
                                 return;
                         default:
@@ -709,6 +713,8 @@ void Modify_Customer_Details(int socket_fd)
             
                                     break;
                         case 5:
+                                lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                                write(fd, &newcust[i], sizeof(struct Customer));
                                 unlock_Customer(socket_fd,fd, i);
                                 return;
                         default:
@@ -769,7 +775,7 @@ void manage_User_Roles(int socket_fd)
                     int l = lock_Employee(socket_fd,fd, i);
                     if(l == 0) 
                     {
-                        strcpy(write_buffer,"\nCannot currently modify Employee role of Employee ");
+                        strcpy(write_buffer,"\nCannot currently modify role of Employee ");
                         strcat(write_buffer,read_buffer);
                         strcat(write_buffer,"%");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
