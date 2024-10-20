@@ -518,7 +518,6 @@ void Modify_Employee_Details(int socket_fd)
     
 }
 
-
 void Modify_Customer_Details(int socket_fd)
 {
 
@@ -582,13 +581,27 @@ void Modify_Customer_Details(int socket_fd)
                         temp_buffer[1] = '\0';  
                         strcat(write_buffer, "\nGender of Customer :- ");
                         strcat(write_buffer, temp_buffer);
-                        strcat(write_buffer, "\n");
+                        // strcat(write_buffer, "\n");
 
                         strcat(write_buffer,"%");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
                         memset(write_buffer, 0, sizeof(write_buffer));
 
-                        strcpy(write_buffer,"\nWhat do you want to Modify :- \n1. Name\n2. Age\n3. Gender\n4. Exit");
+                        if(newcust[i].active == true)
+                        {
+                            strcpy(write_buffer, "Account is currently Active%.");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                        }
+                        else
+                        {
+                            strcpy(write_buffer, "Account is currently Deactivated%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                        }
+                        
+
+                        strcpy(write_buffer,"\nWhat do you want to Modify :- \n1. Name\n2. Age\n3. Gender\n4. Account active status\n5. Exit");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
                         memset(write_buffer, 0, sizeof(write_buffer));
                         read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
@@ -652,7 +665,50 @@ void Modify_Customer_Details(int socket_fd)
 
                                 }
                                 break;
-                        case 4:
+                         case 4:
+                                if(newcust[i].active == true)
+                                {
+                                    strcpy(write_buffer, "\nAccount is currently Active.\nDo you want to deactivate it (y/n)");
+                                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                                    memset(write_buffer, 0, sizeof(write_buffer));
+
+                                    read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                                    // Trim newlines or extra characters
+                                    read_buffer[strcspn(read_buffer, "\n")] = 0;
+
+                                    if(read_buffer[0] == 'y' || read_buffer[0] == 'Y')
+                                    {
+                                        newcust[i].active = false;
+                                        lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                                        write(fd, &newcust[i], sizeof(struct Customer));
+                                        strcpy(write_buffer, "\nSuccessfully changed active status of customer account%");
+                                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                                        memset(write_buffer, 0, sizeof(write_buffer));
+                                    }
+                                }
+                                else if(newcust[i].active == false)
+                                {
+                                    strcpy(write_buffer, "\nAccount is currently Deactivated.\nDo you want to activate it (y/n)");
+                                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                                    memset(write_buffer, 0, sizeof(write_buffer));
+
+                                    read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                                    // Trim newlines or extra characters
+                                    read_buffer[strcspn(read_buffer, "\n")] = 0;
+
+                                    if(read_buffer[0] == 'y' || read_buffer[0] == 'Y')
+                                    {
+                                        newcust[i].active = true;
+                                        lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                                        write(fd, &newcust[i], sizeof(struct Customer));
+                                        strcpy(write_buffer, "\nSuccessfully changed active status of customer account%");
+                                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                                        memset(write_buffer, 0, sizeof(write_buffer));
+                                    }
+                                }
+            
+                                    break;
+                        case 5:
                                 unlock_Customer(socket_fd,fd, i);
                                 return;
                         default:
@@ -677,7 +733,6 @@ void Modify_Customer_Details(int socket_fd)
     
     
 }
-
 
 void manage_User_Roles(int socket_fd)
 {

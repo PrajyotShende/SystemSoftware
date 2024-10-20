@@ -1,7 +1,7 @@
 #include "common1.h"
 #include "real_admin.h"
 #include "employee.h"
-// #include "admin.h"
+#include "customer.h"
 
 int server_fd;
 
@@ -53,18 +53,15 @@ void connection(int fd)
                 {
                     case 1:
                         login_admin(fd);
-                        // system("./real_admin");
                         break;
                     case 2:
                         login_employee(fd);
                         break;
-                    // case 3:
-                    //     employee_operation(fd,3);
-                    //     break;
-                    // case 4:
-                    //     customer_operation(fd);
-                    //     break;
-                    case 5:
+                    case 3:
+                        login_customer(fd);
+                        break;
+                    case 4:
+                            return;
                             break;
                     default:
                         ptr++;
