@@ -8,7 +8,201 @@
 // int lock_Customer2(int socket_fd,int fd, int number);
 // void unlock_Customer2(int socket_fd,int fd, int number);
 
+void Add_Feedback(int socket_fd)
+{
+    int fd = open("feedback.txt",O_CREAT|O_RDWR,0644);
+    if(fd == -1)
+    {
+        perror("Error Opening File");
+        return;
+    }
 
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    int file_size = lseek(fd,0,SEEK_END);
+
+    struct Feedback feed;
+    feed.id = (file_size/sizeof(struct Feedback))+1;
+
+    feed.review = false;
+
+    strcpy(write_buffer,"\nWrite Your Feedback. And after completing press Enter");
+    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    memset(write_buffer, 0, sizeof(write_buffer));
+    read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+    strcpy(feed.feed_back, read_buffer);
+    memset(read_buffer, 0, sizeof(read_buffer));
+
+    lseek(fd, 0, SEEK_END);  
+    write_bytes = write(fd, &feed, sizeof(feed));  
+    if (write_bytes == -1)
+    {
+        perror("Error Writing Feedback to File");
+        close(fd);
+        return;
+    }
+
+    strcpy(write_buffer,"\nYour Feedback is been Recorded%");
+    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+}
+
+void Transfer_Money(int socket_fd,int number)
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct Customer credentials[100];
+
+    int fd = open("customers.txt", O_RDWR);
+    
+    lseek(fd, 0, SEEK_SET);  
+    int b = read(fd, &credentials, sizeof(credentials));
+
+    if (b == -1) 
+    {
+        perror("Error reading file");
+        return;
+    }
+
+    int a = credentials[number].acc_no;
+    char temp_buffer[50];
+
+    while (1)
+    {
+
+        strcpy(write_buffer, "\nCurrent Account balance :- ");
+        sprintf(temp_buffer, "%.2f", credentials[number].balance);
+        strcat(write_buffer, temp_buffer);
+        strcat(write_buffer, "%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
+
+        float c = credentials[number].balance;
+
+        if (c <= 0.00001)
+        {
+            strcpy(write_buffer, "\nNo money in Account to Send%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            close(fd);
+            return;
+        }
+
+
+        
+        while(1)
+        {
+            strcpy(write_buffer, "\nEnter Account No of person you would like to send money");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+            int acc = atoi(read_buffer);
+            if (acc == 0)
+            {
+                strcpy(write_buffer, "\nInvalid account number.%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;  
+            }
+            for(int i=0;i<100;i++)
+            {   
+                
+                if(credentials[i].acc_no == acc)
+                {
+                    int l = lock_Customer1(socket_fd,fd, i);
+                    if(l == 0) 
+                    {
+                        strcpy(write_buffer,"\nCannot currently Send Money to Customer with Account no. ");
+                        strcat(write_buffer,read_buffer);
+                        strcat(write_buffer,"%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
+                        return;
+                    }
+                    memset(read_buffer, 0, sizeof(read_buffer));
+                    while(1)
+                    {
+
+                        strcpy(write_buffer,"\nThese are details of the Account you want to send money\nName of Customer :- ");
+                        strcat(write_buffer,credentials[i].customer_name);
+                        
+                        char temp_buffer[10];  
+                        
+                        strcat(write_buffer,"\nAge of Customer :- ");
+                        sprintf(temp_buffer, "%d", credentials[i].age);  
+                        strcat(write_buffer, temp_buffer);
+
+                        temp_buffer[0] = credentials[i].gender;
+                        temp_buffer[1] = '\0';  
+                        strcat(write_buffer, "\nGender of Customer :- ");
+                        strcat(write_buffer, temp_buffer);
+
+                        strcat(write_buffer,"%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                        memset(write_buffer, 0, sizeof(write_buffer));
+                        
+                        strcpy(write_buffer, "\nEnter Amount of money you would like to send");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
+
+                        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                        float money_withdrawed = atof(read_buffer);
+                        memset(read_buffer, 0, sizeof(read_buffer));
+
+                        if (money_withdrawed <= 0)
+                        {
+                            strcpy(write_buffer, "\nEnter a number greater than 0%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                            continue;  
+                        }
+                        else if (money_withdrawed > c)
+                        {
+                            strcpy(write_buffer, "\nInsufficient Balance in Account. Enter a number less than Current Account Balance%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                            continue;  
+                        }
+
+                        credentials[number].balance -= money_withdrawed;
+                        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+                        write(fd, &credentials[number], sizeof(struct Customer));
+
+                        credentials[i].balance += money_withdrawed;
+                        lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                        write(fd, &credentials[i], sizeof(struct Customer));
+
+                        strcpy(write_buffer, "\nAccount balance after sending money :- ");
+                        sprintf(temp_buffer, "%.2f", credentials[number].balance);
+                        strcat(write_buffer, temp_buffer);
+                        strcat(write_buffer, "%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
+
+                        close(fd);
+                        return;
+                        
+                        
+                    }
+                }
+            }
+
+            strcpy(write_buffer,"\nNo Customer with Account no. ");
+            strcat(write_buffer,read_buffer);
+            strcat(write_buffer,"%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+            memset(write_buffer, 0, sizeof(write_buffer));
+            memset(read_buffer, 0, sizeof(read_buffer));
+
+        }
+    }
+}
 
 void View_Account_Balance(int socket_fd,int number)
 {
@@ -418,7 +612,7 @@ void login_customer(int socket_fd)
             memset(write_buffer, 0, sizeof(write_buffer));
             strcpy(write_buffer, "\n------------Customer Menu------------\n1. View Account Balance\n2. Deposit Money\n3. Withdraw Money\n4. Transfer Funds\n5. Apply for a Loan\n6. Change Password\n7. Add Feedback\n8. View Transaction History\n9. Logout\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
-            // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  // Fix here
+            // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
             memset(write_buffer, 0, sizeof(write_buffer));
 
             read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
@@ -429,16 +623,16 @@ void login_customer(int socket_fd)
             switch (choice) 
             {
                 case 1:
-                    View_Account_Balance(socket_fd,number);
+                        View_Account_Balance(socket_fd,number);
                     break;
                 case 2:
-                    Deposit_Money(socket_fd,number);
+                        Deposit_Money(socket_fd,number);
                     break;
                 case 3:
-                    Withdraw_Money(socket_fd,number);
+                        Withdraw_Money(socket_fd,number);
                     break;
                 case 4:
-                    // Transfer_Funds(socket_fd);
+                        Transfer_Money(socket_fd,number);
                     break;
                 case 5:
                     // Apply_For_Loan(socket_fd);
@@ -448,21 +642,21 @@ void login_customer(int socket_fd)
                         unlock_Customer2(socket_fd, fd, number);
                     return;
                 case 7:
-                    // Add_Feedback(socket_fd);
+                        Add_Feedback(socket_fd);
                     break;
                 case 8:
                     // View_Transaction_History(socket_fd);
                     break;
                 case 9:
-                    unlock_Customer2(socket_fd, fd, number);
-                    strcpy(write_buffer, "\nCustomer logged out%");
-                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-                    memset(write_buffer, 0, sizeof(write_buffer));
-                    return;
+                        unlock_Customer2(socket_fd, fd, number);
+                        strcpy(write_buffer, "\nCustomer logged out%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
+                        return;
                 default:
-                    strcpy(write_buffer, "\nInvalid choice! Please try again.%");
-                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-                    memset(write_buffer, 0, sizeof(write_buffer));
+                        strcpy(write_buffer, "\nInvalid choice! Please try again.%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
             }
 
         }

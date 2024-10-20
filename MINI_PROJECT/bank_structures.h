@@ -35,4 +35,11 @@ struct Customer
     int transaction[15];
 };
 
+struct Feedback
+{
+    int id;
+    char feed_back[100];
+    bool review;
+};
+
 #endif // BANK_STRUCTURES_H

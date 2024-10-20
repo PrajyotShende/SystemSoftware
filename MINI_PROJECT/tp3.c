@@ -6,14 +6,16 @@
 
 int main()
 {
-    int fd = open("admin.txt", O_RDWR);
+    // Open the feedback file in read/write mode
+    int fd = open("feedback.txt", O_RDWR);
     if (fd == -1)
     {
         perror("Error opening file");
         return 1;
     }
 
-    struct LoginCredentials credentials[100];
+    // Read the file contents into the credentials array
+    struct Feedback credentials[100];
     int b = read(fd, &credentials, sizeof(credentials));
     if (b == -1)
     {
@@ -23,12 +25,15 @@ int main()
     }
     close(fd);
 
-    for (int i = 0; i < 3; i++)
+    // Loop through the read feedbacks and print details
+    int num_feedbacks = b / sizeof(struct Feedback);  // Calculate the number of feedbacks read
+    for (int i = 0; i < num_feedbacks; i++)
     {
-        // Print login details ensuring null-termination for string fields
-        printf("User %d Details:\n", i + 1);
-        printf("Username: %.14s\n", credentials[i].username);
-        printf("Password: %.14s\n", credentials[i].password);
+        // Print feedback details
+        printf("Feedback %d Details:\n", i + 1);
+        printf("ID: %d\n", credentials[i].id);  // Print the integer ID
+        printf("Feedback: %s\n", credentials[i].feed_back);  // Print the feedback text
+        printf("Review: %d\n", credentials[i].review);  // Print the feedback text
         printf("\n");
     }
 

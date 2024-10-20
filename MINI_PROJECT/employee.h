@@ -16,9 +16,148 @@ int lock_Customer1(int socket_fd,int fd, int number);
 void unlock_Customer1(int socket_fd,int fd, int number);
 void activate_deactivate_customers(int socket_fd);
 
+int is_feedback_Unique(int fd, int a,int last)
+{
+    struct Feedback feedback_review[last];
+    lseek(fd, 0, SEEK_SET);  
+
+    int b = read(fd, &feedback_review, sizeof(feedback_review));
+    if (b == -1) 
+    {
+        perror("Error reading file");
+        return -1;
+    }
+
+    for (int i = 0; i < last; i++)
+    {
+        if (a == feedback_review[i].id)
+        {
+            if(feedback_review[i].review == false)
+                return i;  
+        }
+    }
+
+    return -1;  
+}
+
+void review_customer_feedback(int socket_fd)
+{
+    int fd = open("feedback.txt", O_RDWR);
+    if (fd == -1)
+    {
+        perror("Error Opening File");
+        return;
+    }
+
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    int file_size = lseek(fd, 0, SEEK_END);
+
+    int last = file_size / sizeof(struct Feedback);
+    
+    if (last == 0)
+    {
+        strcpy(write_buffer, "\nNo feedbacks to review%.");
+        write(socket_fd, write_buffer, sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
+        close(fd);
+        return;
+    }
+
+    struct Feedback review[last];
+    lseek(fd, 0, SEEK_SET);
+    int b = read(fd, &review, sizeof(review));
+    if (b == -1)
+    {
+        perror("Error reading file");
+        close(fd);
+        return;
+    }
+
+            strcpy(write_buffer, "\nThese are the list of feedbacks, which have to be reviewed:");
+
+            int count = 0;
+
+            for (int i = 0; i < last; i++)
+            {
+                if (review[i].review == false)
+                {
+                    count++;
+                    char temp_buffer[50];
+                    strcat(write_buffer, "\n");
+
+                    sprintf(temp_buffer, "%d", review[i].id);
+                    strcat(write_buffer, "ID: ");
+                    strcat(write_buffer, temp_buffer);
+                    strcat(write_buffer, " || Feedback: ");
+                    strcat(write_buffer, review[i].feed_back);
+                    strcat(write_buffer, "%");
+                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                    memset(write_buffer, 0, sizeof(write_buffer));  
+                }
+            }
 
 
 
+            while (1)
+            {
+
+                if(count == 0)
+                {
+                    strcpy(write_buffer, "\nNo feedbacks to review%");
+                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                    memset(write_buffer, 0, sizeof(write_buffer)); 
+                    return;  
+                }
+
+                strcpy(write_buffer, "\nEnter the id of feedback you want to review: ");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+
+                read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                int a = atoi(read_buffer);
+                memset(read_buffer, 0, sizeof(read_buffer));
+
+                if (a == 0)
+                {
+                    strcpy(write_buffer, "\nTry something different.%");
+                    write(socket_fd, write_buffer, sizeof(write_buffer));
+                    memset(write_buffer, 0, sizeof(write_buffer));
+                    continue;
+                }
+
+                int flag = is_feedback_Unique(fd, a, last);  
+                if (flag >= 0)  
+                {
+                    review[flag].review = true;
+
+                    fd = open("feedback.txt", O_RDWR);
+                    if (fd == -1)
+                    {
+                        perror("Error opening file for writing");
+                        return;
+                    }
+                    
+                    lseek(fd, flag * sizeof(struct Feedback), SEEK_SET);
+
+                    write(fd, &review[flag], sizeof(struct Feedback));
+
+                    strcpy(write_buffer, "\nFeedback reviewed successfully.%");
+                    write(socket_fd, write_buffer, sizeof(write_buffer));
+                    close(fd);
+                    return;
+                }
+                else
+                {
+                    strcpy(write_buffer, "\nNo such ID exists. Try again.%");
+                    write(socket_fd, write_buffer, sizeof(write_buffer));
+                    memset(write_buffer, 0, sizeof(write_buffer));
+                }
+            }
+}
 
 void activate_deactivate_customers(int socket_fd)
 {
@@ -515,7 +654,7 @@ void Modify_Customer_Details1(int socket_fd)
                     int l = lock_Customer1(socket_fd,fd, i);
                     if(l == 0) 
                     {
-                        strcpy(write_buffer,"\nCannot currently modify Employee ");
+                        strcpy(write_buffer,"\nCannot currently modify Customer with Account no. ");
                         strcat(write_buffer,read_buffer);
                         strcat(write_buffer,"%");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
@@ -898,7 +1037,7 @@ void login_employee(int socket_fd)
                     break;
                 case 6:
                     changePassword_Employee(socket_fd, fd, number);
-                    unlock_Employee1(socket_fd, fd, number);  // 
+                    unlock_Employee1(socket_fd, fd, number);  
                     return;
                 case 7:
                     unlock_Employee1(socket_fd, fd, number);  
@@ -939,14 +1078,14 @@ void login_employee(int socket_fd)
                     // assign_loan_applications(socket_fd);
                     break;
                 case 3:
-                    // review_customer_feedback(socket_fd);
+                    review_customer_feedback(socket_fd);
                     break;
                 case 4:
                     changePassword_Employee(socket_fd, fd, number);
-                    unlock_Employee1(socket_fd, fd, number);  // Assuming this is for unlocking employee
+                    unlock_Employee1(socket_fd, fd, number);  
                     return;
                 case 5:
-                    unlock_Employee1(socket_fd, fd, number);  // Logout and unlock employee
+                    unlock_Employee1(socket_fd, fd, number);  
                     strcpy(write_buffer, "\nManager logged out%");
                     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                     memset(write_buffer, 0, sizeof(write_buffer));
