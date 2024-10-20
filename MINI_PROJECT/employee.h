@@ -15,7 +15,6 @@ void Modify_Customer_Details1(int socket_fd);
 int lock_Customer1(int socket_fd,int fd, int number);
 void unlock_Customer1(int socket_fd,int fd, int number);
 void activate_deactivate_customers(int socket_fd);
-
 void approve_reject_loans(int socket_fd, int number)
 {
     int fd_loan = open("loan.txt", O_RDWR);
@@ -42,6 +41,9 @@ void approve_reject_loans(int socket_fd, int number)
         return;
     }
 
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+
     char temp_buffer[200], read_buffer[1000], write_buffer[1000];
     int write_bytes, read_bytes;
     memset(read_buffer, 0, sizeof(read_buffer));
@@ -50,6 +52,38 @@ void approve_reject_loans(int socket_fd, int number)
     struct Loan loans[100];
     struct BankEmployee employees[100];
     struct Customer customers[100];
+
+    // Apply read lock on loan file
+    lock.l_type = F_RDLCK;
+    lock.l_whence = SEEK_SET;
+    if (fcntl(fd_loan, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking loan file for reading");
+        close(fd_loan);
+        close(fd_emp);
+        close(fd_cust);
+        return;
+    }
+
+    // Apply read lock on employee file
+    if (fcntl(fd_emp, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking employee file for reading");
+        close(fd_loan);
+        close(fd_emp);
+        close(fd_cust);
+        return;
+    }
+
+    // Apply read lock on customer file
+    if (fcntl(fd_cust, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking customer file for reading");
+        close(fd_loan);
+        close(fd_emp);
+        close(fd_cust);
+        return;
+    }
 
     read(fd_emp, &employees, sizeof(employees));
     read(fd_loan, &loans, sizeof(loans));
@@ -139,7 +173,39 @@ void approve_reject_loans(int socket_fd, int number)
                 read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
                 int choice = atoi(read_buffer);
 
-                if (choice == 1)  
+                // Apply write lock on customer file for the customer record
+                lock.l_type = F_WRLCK;
+                lock.l_whence = SEEK_SET;
+                if (fcntl(fd_cust, F_SETLKW, &lock) == -1)
+                {
+                    perror("Error locking customer file for writing");
+                    close(fd_loan);
+                    close(fd_emp);
+                    close(fd_cust);
+                    return;
+                }
+
+                // Apply write lock on employee record (for the employee who is approving/rejecting the loan)
+                if (fcntl(fd_emp, F_SETLKW, &lock) == -1)
+                {
+                    perror("Error locking employee file for writing");
+                    close(fd_loan);
+                    close(fd_emp);
+                    close(fd_cust);
+                    return;
+                }
+
+                // Apply write lock on loan record
+                if (fcntl(fd_loan, F_SETLKW, &lock) == -1)
+                {
+                    perror("Error locking loan file for writing");
+                    close(fd_loan);
+                    close(fd_emp);
+                    close(fd_cust);
+                    return;
+                }
+
+                if (choice == 1)
                 {
                     loans[j].loanStatus = 2;
                     for (int k = 0; k < 100; k++)
@@ -155,7 +221,7 @@ void approve_reject_loans(int socket_fd, int number)
                     }
                     strcpy(write_buffer, "\nLoan approved successfully.%");
                 }
-                else if (choice == 2)  
+                else if (choice == 2)
                 {
                     loans[j].loanStatus = -1;
                     for (int k = 0; k < 100; k++)
@@ -185,6 +251,13 @@ void approve_reject_loans(int socket_fd, int number)
                 write(fd_emp, &employees[number], sizeof(struct BankEmployee));
 
                 write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+
+                // Release locks
+                lock.l_type = F_UNLCK;
+                fcntl(fd_loan, F_SETLKW, &lock);
+                fcntl(fd_emp, F_SETLKW, &lock);
+                fcntl(fd_cust, F_SETLKW, &lock);
+
                 break;
             }
         }
@@ -200,12 +273,24 @@ void approve_reject_loans(int socket_fd, int number)
     close(fd_cust);
 }
 
-void view_assigned_loans(int socket_fd, int number) 
+void view_assigned_loans(int socket_fd, int number)
 {
     int fd = open("loan.txt", O_RDONLY);
     if (fd == -1)
     {
         perror("Error opening loan file");
+        return;
+    }
+
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_RDLCK;
+    lock.l_whence = SEEK_SET;
+
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking the loan file for reading");
+        close(fd);
         return;
     }
 
@@ -218,7 +303,6 @@ void view_assigned_loans(int socket_fd, int number)
     }
 
     char temp_buffer[200];
-    // memset(write_buffer, 0, sizeof(write_buffer));
     int write_bytes, read_bytes;
     char read_buffer[1000], write_buffer[1000];
     memset(read_buffer, 0, sizeof(read_buffer));
@@ -227,33 +311,30 @@ void view_assigned_loans(int socket_fd, int number)
     struct Loan loans[100];
     struct BankEmployee employees[100];
 
-    read(fd1,&employees,sizeof(employees));
-    read(fd,&loans,sizeof(loans));
+    read(fd1, &employees, sizeof(employees));
+    read(fd, &loans, sizeof(loans));
 
+    if (employees[number].total_loans > 0)
+    {
+        strcpy(write_buffer, "\nLoans assigned to you:\n");
 
-        if(employees[number].total_loans > 0)
+        for (int i = 0; i < 10; i++)
         {
-            strcpy(write_buffer, "\nLoans assigned to you:\n");
-
-            for(int i=0;i<10;i++)
+            if (employees[number].loan[i] != -1)
             {
-
-                if(employees[number].loan[i] != -1)
+                int a = employees[number].loan[i];
+                for (int j = 0; j < 100; j++)
                 {
-                    int a = employees[number].loan[i];
-                    for(int j=0;j<100;j++)
+                    if (loans[j].loanId == a && loans[j].loanStatus == 1)
                     {
-                        if (loans[j].loanId == a && loans[j].loanStatus == 1)
-                        {
-                            sprintf(temp_buffer, "Loan ID: %d || Amount: %.2f || Customer Account No: %d || Loan Status: %d\n",
-                                    loans[j].loanId, loans[j].amount, loans[j].customer_acc_no, loans[j].loanStatus);
-                            strcat(write_buffer, temp_buffer);
-                            break;
-                        }
+                        sprintf(temp_buffer, "Loan ID: %d || Amount: %.2f || Customer Account No: %d || Loan Status: %d\n",
+                                loans[j].loanId, loans[j].amount, loans[j].customer_acc_no, loans[j].loanStatus);
+                        strcat(write_buffer, temp_buffer);
+                        break;
                     }
                 }
-        
             }
+        }
         strcat(write_buffer, "%");
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
         if (write_bytes == -1)
@@ -263,11 +344,18 @@ void view_assigned_loans(int socket_fd, int number)
     }
     else
     {
-        
         strcpy(write_buffer, "\nNo loans assigned to you.%");
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-    }    
-    
+    }
+
+    lock.l_type = F_UNLCK;
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error unlocking the loan file");
+    }
+
+    close(fd);
+    close(fd1);
 }
 
 int is_loan_Unique(int fd, int a, int last)
@@ -294,12 +382,24 @@ int is_loan_Unique(int fd, int a, int last)
     return -1;
 }
 
-void assign_loan_applications(int socket_fd) 
+void assign_loan_applications(int socket_fd)
 {
     int fd = open("loan.txt", O_RDWR);
     if (fd == -1)
     {
         perror("Error Opening File");
+        return;
+    }
+
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking the loan file");
+        close(fd);
         return;
     }
 
@@ -364,7 +464,7 @@ void assign_loan_applications(int socket_fd)
             strcpy(write_buffer, "\nNo loans to assign%");
             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
             memset(write_buffer, 0, sizeof(write_buffer));
-            return;
+            break;
         }
 
         strcpy(write_buffer, "\nEnter the loan id you want to assign: ");
@@ -419,12 +519,10 @@ void assign_loan_applications(int socket_fd)
                 {
                     if (strcmp(new[i].id, read_buffer) == 0)
                     {
-                        if(new[i].role == '1')
+                        if (new[i].role == '1')
                         {
                             strcpy(write_buffer, "\nCannot assign loan to a Manager%");
                             man = 1;
-                            // strcat(write_buffer, read_buffer);
-                            // strcat(write_buffer, "%");
                             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                             memset(write_buffer, 0, sizeof(write_buffer));
                             break;
@@ -440,7 +538,7 @@ void assign_loan_applications(int socket_fd)
                             strcat(write_buffer, "%");
                             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                             memset(write_buffer, 0, sizeof(write_buffer));
-                            return;
+                            break;
                         }
 
                         int a = -1;
@@ -482,13 +580,13 @@ void assign_loan_applications(int socket_fd)
 
                         close(fd1);
                         close(fd);
-                        return;  
+                        return;
                     }
                 }
 
                 if (!employee_found)
                 {
-                    if(man == 0)
+                    if (man == 0)
                     {
                         strcpy(write_buffer, "\nNo Employee with ID ");
                         strcat(write_buffer, read_buffer);
@@ -506,6 +604,14 @@ void assign_loan_applications(int socket_fd)
             memset(write_buffer, 0, sizeof(write_buffer));
         }
     }
+
+    lock.l_type = F_UNLCK;
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error unlocking the loan file");
+    }
+    
+    close(fd);
 }
 
 int is_feedback_Unique(int fd, int a,int last)
@@ -537,7 +643,19 @@ void review_customer_feedback(int socket_fd)
     int fd = open("feedback.txt", O_RDWR);
     if (fd == -1)
     {
-        perror("Error Opening File");
+        perror("Error opening feedback file");
+        return;
+    }
+
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error locking the feedback file");
+        close(fd);
         return;
     }
 
@@ -547,9 +665,8 @@ void review_customer_feedback(int socket_fd)
     memset(write_buffer, 0, sizeof(write_buffer));
 
     int file_size = lseek(fd, 0, SEEK_END);
-
     int last = file_size / sizeof(struct Feedback);
-    
+
     if (last == 0)
     {
         strcpy(write_buffer, "\nNo feedbacks to review%.");
@@ -564,93 +681,88 @@ void review_customer_feedback(int socket_fd)
     int b = read(fd, &review, sizeof(review));
     if (b == -1)
     {
-        perror("Error reading file");
+        perror("Error reading feedback file");
         close(fd);
         return;
     }
 
-            strcpy(write_buffer, "\nThese are the list of feedbacks, which have to be reviewed:");
+    strcpy(write_buffer, "\nThese are the list of feedbacks, which have to be reviewed:");
 
-            int count = 0;
+    int count = 0;
+    for (int i = 0; i < last; i++)
+    {
+        if (review[i].review == false)
+        {
+            count++;
+            char temp_buffer[50];
+            strcat(write_buffer, "\n");
 
-            for (int i = 0; i < last; i++)
-            {
-                if (review[i].review == false)
-                {
-                    count++;
-                    char temp_buffer[50];
-                    strcat(write_buffer, "\n");
+            sprintf(temp_buffer, "%d", review[i].id);
+            strcat(write_buffer, "ID: ");
+            strcat(write_buffer, temp_buffer);
+            strcat(write_buffer, " || Feedback: ");
+            strcat(write_buffer, review[i].feed_back);
+            strcat(write_buffer, "%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+        }
+    }
 
-                    sprintf(temp_buffer, "%d", review[i].id);
-                    strcat(write_buffer, "ID: ");
-                    strcat(write_buffer, temp_buffer);
-                    strcat(write_buffer, " || Feedback: ");
-                    strcat(write_buffer, review[i].feed_back);
-                    strcat(write_buffer, "%");
-                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-                    memset(write_buffer, 0, sizeof(write_buffer));  
-                }
-            }
-            
-            memset(write_buffer, 0, sizeof(write_buffer));  
+    memset(write_buffer, 0, sizeof(write_buffer));
 
+    while (1)
+    {
+        if (count == 0)
+        {
+            strcpy(write_buffer, "\nNo feedbacks to review%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            break;
+        }
 
+        strcpy(write_buffer, "\nEnter the id of feedback you want to review: ");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
 
-            while (1)
-            {
+        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+        int a = atoi(read_buffer);
+        memset(read_buffer, 0, sizeof(read_buffer));
 
-                if(count == 0)
-                {
-                    strcpy(write_buffer, "\nNo feedbacks to review%");
-                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-                    memset(write_buffer, 0, sizeof(write_buffer)); 
-                    return;  
-                }
+        if (a == 0)
+        {
+            strcpy(write_buffer, "\nTry something different.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            continue;
+        }
 
-                strcpy(write_buffer, "\nEnter the id of feedback you want to review: ");
-                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-                memset(write_buffer, 0, sizeof(write_buffer));
+        int flag = is_feedback_Unique(fd, a, last);
+        if (flag >= 0)
+        {
+            review[flag].review = true;
 
-                read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
-                int a = atoi(read_buffer);
-                memset(read_buffer, 0, sizeof(read_buffer));
+            lseek(fd, flag * sizeof(struct Feedback), SEEK_SET);
+            write(fd, &review[flag], sizeof(struct Feedback));
 
-                if (a == 0)
-                {
-                    strcpy(write_buffer, "\nTry something different.%");
-                    write(socket_fd, write_buffer, sizeof(write_buffer));
-                    memset(write_buffer, 0, sizeof(write_buffer));
-                    continue;
-                }
+            strcpy(write_buffer, "\nFeedback reviewed successfully.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            break;
+        }
+        else
+        {
+            strcpy(write_buffer, "\nNo such ID exists. Try again.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+        }
+    }
 
-                int flag = is_feedback_Unique(fd, a, last);  
-                if (flag >= 0)  
-                {
-                    review[flag].review = true;
+    lock.l_type = F_UNLCK;
+    if (fcntl(fd, F_SETLKW, &lock) == -1)
+    {
+        perror("Error unlocking the feedback file");
+    }
 
-                    fd = open("feedback.txt", O_RDWR);
-                    if (fd == -1)
-                    {
-                        perror("Error opening file for writing");
-                        return;
-                    }
-                    
-                    lseek(fd, flag * sizeof(struct Feedback), SEEK_SET);
-
-                    write(fd, &review[flag], sizeof(struct Feedback));
-
-                    strcpy(write_buffer, "\nFeedback reviewed successfully.%");
-                    write(socket_fd, write_buffer, sizeof(write_buffer));
-                    close(fd);
-                    return;
-                }
-                else
-                {
-                    strcpy(write_buffer, "\nNo such ID exists. Try again.%");
-                    write(socket_fd, write_buffer, sizeof(write_buffer));
-                    memset(write_buffer, 0, sizeof(write_buffer));
-                }
-            }
+    close(fd);
 }
 
 void activate_deactivate_customers(int socket_fd)
