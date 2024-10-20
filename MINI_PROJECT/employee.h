@@ -16,6 +16,498 @@ int lock_Customer1(int socket_fd,int fd, int number);
 void unlock_Customer1(int socket_fd,int fd, int number);
 void activate_deactivate_customers(int socket_fd);
 
+void approve_reject_loans(int socket_fd, int number)
+{
+    int fd_loan = open("loan.txt", O_RDWR);
+    if (fd_loan == -1)
+    {
+        perror("Error opening loan file");
+        return;
+    }
+
+    int fd_emp = open("employees.txt", O_RDWR);
+    if (fd_emp == -1)
+    {
+        perror("Error opening employee file");
+        close(fd_loan);
+        return;
+    }
+
+    int fd_cust = open("customers.txt", O_RDWR);
+    if (fd_cust == -1)
+    {
+        perror("Error opening customer file");
+        close(fd_loan);
+        close(fd_emp);
+        return;
+    }
+
+    char temp_buffer[200], read_buffer[1000], write_buffer[1000];
+    int write_bytes, read_bytes;
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct Loan loans[100];
+    struct BankEmployee employees[100];
+    struct Customer customers[100];
+
+    read(fd_emp, &employees, sizeof(employees));
+    read(fd_loan, &loans, sizeof(loans));
+    read(fd_cust, &customers, sizeof(customers));
+
+    if (employees[number].total_loans > 0)
+    {
+        strcpy(write_buffer, "\nLoans assigned to you:\n");
+        for (int i = 0; i < 10; i++)
+        {
+            if (employees[number].loan[i] != -1)
+            {
+                int a = employees[number].loan[i];
+                for (int j = 0; j < 100; j++)
+                {
+                    if (loans[j].loanId == a && loans[j].loanStatus == 1)
+                    {
+                        sprintf(temp_buffer, "Loan ID: %d || Amount: %.2f || Customer Account No: %d || Loan Status: %d\n",
+                                loans[j].loanId, loans[j].amount, loans[j].customer_acc_no, loans[j].loanStatus);
+                        strcat(write_buffer, temp_buffer);
+                    }
+                }
+            }
+        }
+
+        strcat(write_buffer, "%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+        if (write_bytes == -1)
+        {
+            perror("Error writing to socket");
+            return;
+        }
+
+        memset(read_buffer, 0, sizeof(read_buffer));
+        strcpy(write_buffer, "\nEnter the Loan ID you want to process: ");
+        write(socket_fd, write_buffer, sizeof(write_buffer));
+        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+        int loan_id = atoi(read_buffer);
+
+        int loan_exists = 0;
+        for (int j = 0; j < 100; j++)
+        {
+            if (loans[j].loanId == loan_id && loans[j].loanStatus == 1)
+            {
+                loan_exists = 1;
+                break;
+            }
+        }
+
+        if (loan_exists == 0)
+        {
+            strcpy(write_buffer, "\nThe entered Loan ID does not exist or is not assigned to you.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            close(fd_loan);
+            close(fd_emp);
+            close(fd_cust);
+            return;
+        }
+
+        int loan_index = -1;
+        for (int i = 0; i < 10; i++)
+        {
+            if (employees[number].loan[i] == loan_id)
+            {
+                loan_index = i;
+                break;
+            }
+        }
+
+        if (loan_index == -1)
+        {
+            strcpy(write_buffer, "\nThe entered Loan ID is not assigned to you.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            close(fd_loan);
+            close(fd_emp);
+            close(fd_cust);
+            return;
+        }
+
+        for (int j = 0; j < 100; j++)
+        {
+            if (loans[j].loanId == loan_id)
+            {
+                strcpy(write_buffer, "\nDo you want to approve (1) or reject (2) this loan? ");
+                write(socket_fd, write_buffer, sizeof(write_buffer));
+                memset(read_buffer, 0, sizeof(read_buffer));
+                read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+                int choice = atoi(read_buffer);
+
+                if (choice == 1)  
+                {
+                    loans[j].loanStatus = 2;
+                    for (int k = 0; k < 100; k++)
+                    {
+                        if (customers[k].acc_no == loans[j].customer_acc_no)
+                        {
+                            customers[k].balance += loans[j].amount;
+                            customers[k].loanID = -1;
+                            lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
+                            write(fd_cust, &customers[k], sizeof(struct Customer));
+                            break;
+                        }
+                    }
+                    strcpy(write_buffer, "\nLoan approved successfully.%");
+                }
+                else if (choice == 2)  
+                {
+                    loans[j].loanStatus = -1;
+                    for (int k = 0; k < 100; k++)
+                    {
+                        if (customers[k].acc_no == loans[j].customer_acc_no)
+                        {
+                            customers[k].loanID = -1;
+                            lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
+                            write(fd_cust, &customers[k], sizeof(struct Customer));
+                            break;
+                        }
+                    }
+                    strcpy(write_buffer, "\nLoan rejected successfully.%");
+                }
+                else
+                {
+                    strcpy(write_buffer, "\nInvalid choice.%");
+                }
+
+                lseek(fd_loan, j * sizeof(struct Loan), SEEK_SET);
+                write(fd_loan, &loans[j], sizeof(struct Loan));
+
+                employees[number].loan[loan_index] = -1;
+                employees[number].total_loans--;
+
+                lseek(fd_emp, number * sizeof(struct BankEmployee), SEEK_SET);
+                write(fd_emp, &employees[number], sizeof(struct BankEmployee));
+
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                break;
+            }
+        }
+    }
+    else
+    {
+        strcpy(write_buffer, "\nNo loans assigned to you.%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+    }
+
+    close(fd_loan);
+    close(fd_emp);
+    close(fd_cust);
+}
+
+void view_assigned_loans(int socket_fd, int number) 
+{
+    int fd = open("loan.txt", O_RDONLY);
+    if (fd == -1)
+    {
+        perror("Error opening loan file");
+        return;
+    }
+
+    int fd1 = open("employees.txt", O_RDONLY);
+    if (fd1 == -1)
+    {
+        perror("Error opening employee file");
+        close(fd);
+        return;
+    }
+
+    char temp_buffer[200];
+    // memset(write_buffer, 0, sizeof(write_buffer));
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct Loan loans[100];
+    struct BankEmployee employees[100];
+
+    read(fd1,&employees,sizeof(employees));
+    read(fd,&loans,sizeof(loans));
+
+
+        if(employees[number].total_loans > 0)
+        {
+            strcpy(write_buffer, "\nLoans assigned to you:\n");
+
+            for(int i=0;i<10;i++)
+            {
+
+                if(employees[number].loan[i] != -1)
+                {
+                    int a = employees[number].loan[i];
+                    for(int j=0;j<100;j++)
+                    {
+                        if (loans[j].loanId == a && loans[j].loanStatus == 1)
+                        {
+                            sprintf(temp_buffer, "Loan ID: %d || Amount: %.2f || Customer Account No: %d || Loan Status: %d\n",
+                                    loans[j].loanId, loans[j].amount, loans[j].customer_acc_no, loans[j].loanStatus);
+                            strcat(write_buffer, temp_buffer);
+                            break;
+                        }
+                    }
+                }
+        
+            }
+        strcat(write_buffer, "%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+        if (write_bytes == -1)
+        {
+            perror("Error writing to socket");
+        }
+    }
+    else
+    {
+        
+        strcpy(write_buffer, "\nNo loans assigned to you.%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+    }    
+    
+}
+
+int is_loan_Unique(int fd, int a, int last)
+{
+    struct Loan loan_assignment[last];
+    lseek(fd, 0, SEEK_SET);
+
+    int b = read(fd, &loan_assignment, sizeof(loan_assignment));
+    if (b == -1)
+    {
+        perror("Error reading file");
+        return -1;
+    }
+
+    for (int i = 0; i < last; i++)
+    {
+        if (a == loan_assignment[i].loanId)
+        {
+            if (loan_assignment[i].loanStatus == 0) // Loan not yet assigned to any employee
+                return i;
+        }
+    }
+
+    return -1;
+}
+
+void assign_loan_applications(int socket_fd) 
+{
+    int fd = open("loan.txt", O_RDWR);
+    if (fd == -1)
+    {
+        perror("Error Opening File");
+        return;
+    }
+
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    int file_size = lseek(fd, 0, SEEK_END);
+    int last_loan = file_size / sizeof(struct Loan);
+
+    if (last_loan == 0)
+    {
+        strcpy(write_buffer, "\nNo loans to assign%");
+        write(socket_fd, write_buffer, sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
+        close(fd);
+        return;
+    }
+
+    struct Loan loan_assignment[last_loan];
+    lseek(fd, 0, SEEK_SET);
+    int b = read(fd, &loan_assignment, sizeof(loan_assignment));
+    if (b == -1)
+    {
+        perror("Error reading file");
+        close(fd);
+        return;
+    }
+
+    strcpy(write_buffer, "\nThese are the list of loans, which have to be assigned:");
+    int count = 0;
+    for (int k = 0; k < last_loan; k++)
+    {
+        if (loan_assignment[k].loanStatus == 0)
+        {
+            count++;
+            char temp_buffer[50], temp_buffer1[50], temp_buffer2[50];
+            strcat(write_buffer, "\n");
+
+            sprintf(temp_buffer, "%d", loan_assignment[k].loanId);
+            strcat(write_buffer, "ID: ");
+            strcat(write_buffer, temp_buffer);
+            strcat(write_buffer, " || Loan Amount: ");
+            sprintf(temp_buffer1, "%f", loan_assignment[k].amount);
+            strcat(write_buffer, temp_buffer1);
+            strcat(write_buffer, " || Customer Account No. : ");
+            sprintf(temp_buffer2, "%d", loan_assignment[k].customer_acc_no);
+            strcat(write_buffer, temp_buffer2);
+            strcat(write_buffer, "%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+        }
+    }
+
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    while (1)
+    {
+        if (count == 0)
+        {
+            strcpy(write_buffer, "\nNo loans to assign%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            return;
+        }
+
+        strcpy(write_buffer, "\nEnter the loan id you want to assign: ");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
+
+        read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+        int z = atoi(read_buffer);
+        memset(read_buffer, 0, sizeof(read_buffer));
+
+        if (z == 0)
+        {
+            strcpy(write_buffer, "\nWrong Loan_ID.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            continue;
+        }
+
+        int flag = is_loan_Unique(fd, z, last_loan);
+
+        if (flag >= 0)
+        {
+            int fd1 = open("employees.txt", O_RDWR);
+            if (fd1 == -1)
+            {
+                perror("Error opening file");
+                close(fd);
+                return;
+            }
+
+            struct BankEmployee new[100];
+            read(fd1, &new, sizeof(new));
+
+            while (1)
+            {
+                strcpy(write_buffer, "\nEnter Employee ID :- ");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                memset(write_buffer, 0, sizeof(write_buffer));
+
+                read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+
+                if (strcmp(read_buffer, "0") == 0)
+                {
+                    strcpy(write_buffer, "\nInvalid Employee ID. Cannot be zero.%");
+                    write(socket_fd, write_buffer, sizeof(write_buffer));
+                    memset(write_buffer, 0, sizeof(write_buffer));
+                    continue;
+                }
+                int man = 0;
+                int employee_found = 0;
+                for (int i = 0; i < 100; i++)
+                {
+                    if (strcmp(new[i].id, read_buffer) == 0)
+                    {
+                        if(new[i].role == '1')
+                        {
+                            strcpy(write_buffer, "\nCannot assign loan to a Manager%");
+                            man = 1;
+                            // strcat(write_buffer, read_buffer);
+                            // strcat(write_buffer, "%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                            break;
+                        }
+                        employee_found = 1;
+
+                        int l = lock_Employee(socket_fd, fd, i);
+
+                        if (l == 0)
+                        {
+                            strcpy(write_buffer, "\nCannot currently assign loan to Employee ");
+                            strcat(write_buffer, read_buffer);
+                            strcat(write_buffer, "%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                            return;
+                        }
+
+                        int a = -1;
+                        for (int j = 0; j < 10; j++)
+                        {
+                            if (new[i].loan[j] == -1)
+                            {
+                                a = j;
+                                break;
+                            }
+                        }
+
+                        if (new[i].total_loans == 10)
+                        {
+                            strcpy(write_buffer, "\nNo more loans can be assigned to Employee ");
+                            strcat(write_buffer, read_buffer);
+                            strcat(write_buffer, "%");
+                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                            memset(write_buffer, 0, sizeof(write_buffer));
+                            continue;
+                        }
+
+                        new[i].loan[a] = loan_assignment[flag].loanId;
+                        new[i].total_loans += 1;
+                        lseek(fd1, i * sizeof(struct BankEmployee), SEEK_SET);
+                        write(fd1, &new[i], sizeof(struct BankEmployee));
+
+                        strcpy(write_buffer, "\nLoan assigned to Employee ");
+                        strcat(write_buffer, read_buffer);
+                        strcat(write_buffer, " Successfully");
+                        strcat(write_buffer, "%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
+
+                        strcpy(loan_assignment[flag].employee_ID, read_buffer);
+                        loan_assignment[flag].loanStatus = 1;
+                        lseek(fd, flag * sizeof(struct Loan), SEEK_SET);
+                        write(fd, &loan_assignment[flag], sizeof(struct Loan));
+
+                        close(fd1);
+                        close(fd);
+                        return;  
+                    }
+                }
+
+                if (!employee_found)
+                {
+                    if(man == 0)
+                    {
+                        strcpy(write_buffer, "\nNo Employee with ID ");
+                        strcat(write_buffer, read_buffer);
+                        strcat(write_buffer, "%");
+                        write(socket_fd, write_buffer, sizeof(write_buffer));
+                        memset(write_buffer, 0, sizeof(write_buffer));
+                    }
+                }
+            }
+        }
+        else
+        {
+            strcpy(write_buffer, "\nNo such ID exists. Try again.%");
+            write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+        }
+    }
+}
+
 int is_feedback_Unique(int fd, int a,int last)
 {
     struct Feedback feedback_review[last];
@@ -99,6 +591,8 @@ void review_customer_feedback(int socket_fd)
                     memset(write_buffer, 0, sizeof(write_buffer));  
                 }
             }
+            
+            memset(write_buffer, 0, sizeof(write_buffer));  
 
 
 
@@ -326,7 +820,7 @@ int lock_Customer1(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
     Admin_WRITELOCK.l_len = sizeof(struct Customer);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -349,7 +843,7 @@ void unlock_Customer1(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct Customer);
     unlock_admin.l_len = sizeof(struct Customer);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -373,7 +867,7 @@ int lock_Employee1(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct BankEmployee);
     Admin_WRITELOCK.l_len = sizeof(struct BankEmployee);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -396,7 +890,7 @@ void unlock_Employee1(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct BankEmployee);
     unlock_admin.l_len = sizeof(struct BankEmployee);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -949,8 +1443,8 @@ int Checking_login_credentials_Employee(int socket_fd,const char *input_username
             {
                 memset(write_buffer, 0, sizeof(write_buffer));
                 strcpy(write_buffer,"\n");
-                strcat(write_buffer,input_username);
-                strcat(write_buffer," is already logged in$");
+                // strcat(write_buffer,input_username);
+                strcat(write_buffer," Cannot currently  in$");
                 write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));    
                 memset(write_buffer, 0, sizeof(write_buffer));
                 close(fd);
@@ -1008,7 +1502,7 @@ void login_employee(int socket_fd)
         {
 
             memset(write_buffer, 0, sizeof(write_buffer));
-            strcpy(write_buffer, "\n------------Employee Menu------------\n1. Add New Customer\n2. Modify Customer Details\n3. Process Loan Applications\n4. Approve/Reject Loans\n5. View Assigned Loan Applications\n6. Change Password\n7. Logout\n\nEnter your choice:");
+            strcpy(write_buffer, "\n------------Employee Menu------------\n1. Add New Customer\n2. Modify Customer Details\n3. Approve/Reject Loans\n4. View Assigned Loan Applications\n5. Change Password\n6. Logout\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
             // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  // Fix here
             memset(write_buffer, 0, sizeof(write_buffer));
@@ -1027,19 +1521,16 @@ void login_employee(int socket_fd)
                     Modify_Customer_Details1(socket_fd);
                     break;
                 case 3:
-                    // process_loan_applications(socket_fd);
+                    approve_reject_loans(socket_fd,number);
                     break;
                 case 4:
-                    // approve_reject_loans(socket_fd);
+                    view_assigned_loans(socket_fd,number);
                     break;
                 case 5:
-                    // view_assigned_loans(socket_fd);
-                    break;
-                case 6:
                     changePassword_Employee(socket_fd, fd, number);
                     unlock_Employee1(socket_fd, fd, number);  
                     return;
-                case 7:
+                case 6:
                     unlock_Employee1(socket_fd, fd, number);  
                     strcpy(write_buffer, "\nEmployee logged out%");
                     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
@@ -1075,7 +1566,7 @@ void login_employee(int socket_fd)
                     activate_deactivate_customers(socket_fd);
                     break;
                 case 2:
-                    // assign_loan_applications(socket_fd);
+                    assign_loan_applications(socket_fd);
                     break;
                 case 3:
                     review_customer_feedback(socket_fd);

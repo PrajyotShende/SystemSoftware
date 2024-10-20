@@ -39,7 +39,7 @@ int lock_Customer(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
     Admin_WRITELOCK.l_len = sizeof(struct Customer);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -62,7 +62,7 @@ void unlock_Customer(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct Customer);
     unlock_admin.l_len = sizeof(struct Customer);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -86,7 +86,7 @@ int lock_Employee(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct BankEmployee);
     Admin_WRITELOCK.l_len = sizeof(struct BankEmployee);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -109,7 +109,7 @@ void unlock_Employee(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct BankEmployee);
     unlock_admin.l_len = sizeof(struct BankEmployee);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -133,7 +133,7 @@ int lock_admin(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct LoginCredentials);
     Admin_WRITELOCK.l_len = sizeof(struct LoginCredentials);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -156,7 +156,7 @@ void unlock_admin(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct LoginCredentials);
     unlock_admin.l_len = sizeof(struct LoginCredentials);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -227,9 +227,17 @@ void add_employee(int socket_fd)
             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
             memset(write_buffer, 0, sizeof(write_buffer));
             read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
-
+            int z = atoi(read_buffer);
+            if(z == 0)
+            {
+                strcpy(write_buffer,"\n");
+                strcat(write_buffer,"Invalid ID.Try something Different.%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;
+            }
             int a = is_ID_Unique(fd,read_buffer);
-            // printf("%d",a);
+
             if(a == 1)
             {
                 strcpy(new_employee.id,read_buffer);

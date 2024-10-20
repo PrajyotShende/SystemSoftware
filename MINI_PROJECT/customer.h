@@ -5,8 +5,91 @@
 #include "bank_structures.h"
 
 
-// int lock_Customer2(int socket_fd,int fd, int number);
-// void unlock_Customer2(int socket_fd,int fd, int number);
+void Apply_For_Loan(int socket_fd,int number)
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct Customer credentials[100];
+
+    int fd = open("customers.txt",O_RDWR);
+    
+    lseek(fd, 0, SEEK_SET);  
+    int b = read(fd, &credentials, sizeof(credentials));
+
+    if (b == -1) 
+    {
+        perror("Error reading file");
+        return;
+    }
+
+    int fd1 = open("loan.txt",O_CREAT|O_RDWR,0644);
+    if(fd1 == -1)
+    {
+        perror("Erron opening file");
+    }
+
+    if(credentials[number].loanID == -1)
+    {
+        while(1)
+        {
+
+            strcpy(write_buffer,"\nEnter Amount of money you would like to loan");
+            write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+            float loan_amt = atof(read_buffer);
+            memset(read_buffer, 0, sizeof(read_buffer));
+            if(loan_amt <= 0)
+            {
+                strcpy(write_buffer, "\n Enter a no. greater than 0%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;  
+            }
+            if(loan_amt > 1000000)
+            {
+                strcpy(write_buffer, "\n Enter a no. less than 10,00,000%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;  
+            }
+            
+            credentials[number].loanID = 0;
+
+            struct Loan l;
+            l.amount = loan_amt;
+            l.customer_acc_no = credentials[number].acc_no;
+            strcpy(l.employee_ID, "not assigned");
+            l.loanStatus = 0;
+            l.loanId = (lseek(fd1,0,SEEK_END)/sizeof(struct Loan)) + 1 ;
+
+            credentials[number].loanID = l.loanId;
+
+            lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+            write(fd,&credentials[number],sizeof(struct Customer));
+
+            write(fd1, &l, sizeof(struct Loan));
+
+            strcpy(write_buffer,"\nYour loan request has been sent. Please wait a few days.%");
+            write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            return;
+        }
+        
+    }
+    else
+    {
+        strcpy(write_buffer,"\nYou currently cannot apply for a loan.%");
+        write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+        memset(write_buffer, 0, sizeof(write_buffer));
+        return;
+    }
+
+    return;
+}
 
 void Add_Feedback(int socket_fd)
 {
@@ -72,6 +155,7 @@ void Transfer_Money(int socket_fd,int number)
     }
 
     int a = credentials[number].acc_no;
+
     char temp_buffer[50];
 
     while (1)
@@ -107,6 +191,13 @@ void Transfer_Money(int socket_fd,int number)
             if (acc == 0)
             {
                 strcpy(write_buffer, "\nInvalid account number.%");
+                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                memset(write_buffer, 0, sizeof(write_buffer));
+                continue;  
+            }
+            if (acc == a)
+            {
+                strcpy(write_buffer, "\nCannot send money to yourself.%");
                 write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
                 memset(write_buffer, 0, sizeof(write_buffer));
                 continue;  
@@ -389,7 +480,7 @@ int lock_Customer2(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
     Admin_WRITELOCK.l_len = sizeof(struct Customer);
 
-    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -412,7 +503,7 @@ void unlock_Customer2(int socket_fd,int fd, int number)
     unlock_admin.l_start = number * sizeof(struct Customer);
     unlock_admin.l_len = sizeof(struct Customer);
 
-    int unlocking = fcntl(fd, F_SETLK, &unlock_admin);
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
 
     if (unlocking == -1)
     {
@@ -553,7 +644,7 @@ int Checking_login_credentials2(int socket_fd,const char *input_username, const 
                 memset(write_buffer, 0, sizeof(write_buffer));
                 strcpy(write_buffer,"\n");
                 strcat(write_buffer,input_username);
-                strcat(write_buffer," is already logged in$");
+                strcat(write_buffer," Cannot currently log in$");
                 write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));    
                 memset(write_buffer, 0, sizeof(write_buffer));
                 close(fd);
@@ -635,7 +726,7 @@ void login_customer(int socket_fd)
                         Transfer_Money(socket_fd,number);
                     break;
                 case 5:
-                    // Apply_For_Loan(socket_fd);
+                        Apply_For_Loan(socket_fd,number);
                     break;
                 case 6:
                         changePassword_customer(socket_fd, fd, number);
@@ -664,6 +755,5 @@ void login_customer(int socket_fd)
 
     close(fd);
 }
-
 
 #endif

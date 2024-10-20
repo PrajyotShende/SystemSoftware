@@ -2,6 +2,8 @@
     "files.associations": {
         "ostream": "cpp",
         "iostream": "cpp",
-        "common1.h": "c"
+        "common1.h": "c",
+        "chrono": "cpp",
+        "span": "cpp"
     }
 }

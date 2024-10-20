@@ -1,6 +1,8 @@
 #ifndef BANK_STRUCTURES_H
 #define BANK_STRUCTURES_H
 #include <stdbool.h>
+#include<time.h>
+
 
 struct LoginCredentials 
 {
@@ -35,11 +37,30 @@ struct Customer
     int transaction[15];
 };
 
+
+struct Loan
+{
+    int loanId;
+    float amount;
+    int customer_acc_no;
+    char employee_ID[15];
+    int loanStatus; // 0 - not assigned to employee // 1 - assigned to employee // -1 - rejected // 2 - accepted
+};
+
 struct Feedback
 {
     int id;
     char feed_back[100];
     bool review;
+};
+
+struct Transaction 
+{
+    int transaction_id;
+    int customer_account_no;
+    float amount;
+    int transaction_type;
+    // time_t transaction_time;
 };
 
 #endif // BANK_STRUCTURES_H
