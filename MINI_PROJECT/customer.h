@@ -5,6 +5,13 @@
 #include "bank_structures.h"
 
 
+void View_Transaction_History(socket_fd)
+{
+    
+}
+
+
+
 void Apply_For_Loan(int socket_fd,int number)
 {
     int write_bytes, read_bytes;
@@ -144,6 +151,8 @@ void Transfer_Money(int socket_fd,int number)
     struct Customer credentials[100];
 
     int fd = open("customers.txt", O_RDWR);
+    int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
+
     
     lseek(fd, 0, SEEK_SET);  
     int b = read(fd, &credentials, sizeof(credentials));
@@ -379,6 +388,12 @@ void Deposit_Money(int socket_fd,int number)
         strcat(write_buffer,"%");
         write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
         memset(write_buffer, 0, sizeof(write_buffer));
+
+        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
+
+
+
+
         return;
     }
 
@@ -461,6 +476,9 @@ void Withdraw_Money(int socket_fd, int number)
         strcat(write_buffer, "%");
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
         memset(write_buffer, 0, sizeof(write_buffer));
+
+        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
+
 
         close(fd);
         return;
@@ -701,7 +719,7 @@ void login_customer(int socket_fd)
         while (1) 
         {
             memset(write_buffer, 0, sizeof(write_buffer));
-            strcpy(write_buffer, "\n------------Customer Menu------------\n1. View Account Balance\n2. Deposit Money\n3. Withdraw Money\n4. Transfer Funds\n5. Apply for a Loan\n6. Change Password\n7. Add Feedback\n8. View Transaction History\n9. Logout\n\nEnter your choice:");
+            strcpy(write_buffer, "\n------------Customer Menu------------\n1. View Account Balance\n2. Deposit Money\n3. Withdraw Money\n4. Transfer Funds\n5. Apply for a Loan\n6. Change Password\n7. Add Feedback\n8. View Transaction History\n9. Logout\n#. Exit\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
             // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
             memset(write_buffer, 0, sizeof(write_buffer));
@@ -736,7 +754,7 @@ void login_customer(int socket_fd)
                         Add_Feedback(socket_fd);
                     break;
                 case 8:
-                    // View_Transaction_History(socket_fd);
+                        View_Transaction_History(socket_fd);
                     break;
                 case 9:
                         unlock_Customer2(socket_fd, fd, number);

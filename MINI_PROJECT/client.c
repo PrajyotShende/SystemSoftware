@@ -77,7 +77,14 @@ int main()
                 printf("%s\n",read_buffer);
                     
 
-                scanf("%[^\n]%*c",write_buffer);
+                scanf(" %[^\n]%*c",write_buffer);
+
+                if (strcmp(write_buffer, "#") == 0)
+                {
+                    write(client_fd, write_buffer, strlen(write_buffer));
+                    printf("Sent '#' to server. Closing connection...\n");
+                    break; 
+                }
                 
                 int write_bytes = write(client_fd,&write_buffer,sizeof(write_buffer));
                     

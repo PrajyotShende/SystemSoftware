@@ -15,8 +15,32 @@ void Modify_Customer_Details1(int socket_fd);
 int lock_Customer1(int socket_fd,int fd, int number);
 void unlock_Customer1(int socket_fd,int fd, int number);
 void activate_deactivate_customers(int socket_fd);
+
+int lock_Loan(int fd, int loan_index) 
+{
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = loan_index * sizeof(struct Loan);
+    lock.l_len = sizeof(struct Loan);
+    return (fcntl(fd, F_SETLKW, &lock) == -1) ? 0 : 1;
+}
+
+void unlock_Loan(int fd, int loan_index) 
+{
+    struct flock lock;
+    lock.l_type = F_UNLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = loan_index * sizeof(struct Loan);
+    lock.l_len = sizeof(struct Loan);
+    // return (fcntl(fd, F_SETLKW, &lock) == -1) ? 0 : 1;
+}
+
 void approve_reject_loans(int socket_fd, int number)
 {
+
+    int m;
+
     int fd_loan = open("loan.txt", O_RDWR);
     if (fd_loan == -1)
     {
@@ -41,9 +65,6 @@ void approve_reject_loans(int socket_fd, int number)
         return;
     }
 
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-
     char temp_buffer[200], read_buffer[1000], write_buffer[1000];
     int write_bytes, read_bytes;
     memset(read_buffer, 0, sizeof(read_buffer));
@@ -53,37 +74,7 @@ void approve_reject_loans(int socket_fd, int number)
     struct BankEmployee employees[100];
     struct Customer customers[100];
 
-    // Apply read lock on loan file
-    lock.l_type = F_RDLCK;
-    lock.l_whence = SEEK_SET;
-    if (fcntl(fd_loan, F_SETLKW, &lock) == -1)
-    {
-        perror("Error locking loan file for reading");
-        close(fd_loan);
-        close(fd_emp);
-        close(fd_cust);
-        return;
-    }
-
-    // Apply read lock on employee file
-    if (fcntl(fd_emp, F_SETLKW, &lock) == -1)
-    {
-        perror("Error locking employee file for reading");
-        close(fd_loan);
-        close(fd_emp);
-        close(fd_cust);
-        return;
-    }
-
-    // Apply read lock on customer file
-    if (fcntl(fd_cust, F_SETLKW, &lock) == -1)
-    {
-        perror("Error locking customer file for reading");
-        close(fd_loan);
-        close(fd_emp);
-        close(fd_cust);
-        return;
-    }
+    // int z = lock_Employee1(socket_fd,fd_emp,number);
 
     read(fd_emp, &employees, sizeof(employees));
     read(fd_loan, &loans, sizeof(loans));
@@ -137,9 +128,6 @@ void approve_reject_loans(int socket_fd, int number)
         {
             strcpy(write_buffer, "\nThe entered Loan ID does not exist or is not assigned to you.%");
             write(socket_fd, write_buffer, sizeof(write_buffer));
-            close(fd_loan);
-            close(fd_emp);
-            close(fd_cust);
             return;
         }
 
@@ -157,9 +145,6 @@ void approve_reject_loans(int socket_fd, int number)
         {
             strcpy(write_buffer, "\nThe entered Loan ID is not assigned to you.%");
             write(socket_fd, write_buffer, sizeof(write_buffer));
-            close(fd_loan);
-            close(fd_emp);
-            close(fd_cust);
             return;
         }
 
@@ -167,45 +152,23 @@ void approve_reject_loans(int socket_fd, int number)
         {
             if (loans[j].loanId == loan_id)
             {
+                int z = loan_id;
+                for(m = 0; m < 100; m++)
+                {
+                    if (customers[m].loanID == loan_id)
+                    {
+                        int m1 = lock_Customer1(socket_fd,fd_cust,m);
+                        break;
+                    }
+                }
+
                 strcpy(write_buffer, "\nDo you want to approve (1) or reject (2) this loan? ");
                 write(socket_fd, write_buffer, sizeof(write_buffer));
                 memset(read_buffer, 0, sizeof(read_buffer));
                 read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
                 int choice = atoi(read_buffer);
 
-                // Apply write lock on customer file for the customer record
-                lock.l_type = F_WRLCK;
-                lock.l_whence = SEEK_SET;
-                if (fcntl(fd_cust, F_SETLKW, &lock) == -1)
-                {
-                    perror("Error locking customer file for writing");
-                    close(fd_loan);
-                    close(fd_emp);
-                    close(fd_cust);
-                    return;
-                }
-
-                // Apply write lock on employee record (for the employee who is approving/rejecting the loan)
-                if (fcntl(fd_emp, F_SETLKW, &lock) == -1)
-                {
-                    perror("Error locking employee file for writing");
-                    close(fd_loan);
-                    close(fd_emp);
-                    close(fd_cust);
-                    return;
-                }
-
-                // Apply write lock on loan record
-                if (fcntl(fd_loan, F_SETLKW, &lock) == -1)
-                {
-                    perror("Error locking loan file for writing");
-                    close(fd_loan);
-                    close(fd_emp);
-                    close(fd_cust);
-                    return;
-                }
-
-                if (choice == 1)
+                if (choice == 1)  
                 {
                     loans[j].loanStatus = 2;
                     for (int k = 0; k < 100; k++)
@@ -221,7 +184,7 @@ void approve_reject_loans(int socket_fd, int number)
                     }
                     strcpy(write_buffer, "\nLoan approved successfully.%");
                 }
-                else if (choice == 2)
+                else if (choice == 2)  
                 {
                     loans[j].loanStatus = -1;
                     for (int k = 0; k < 100; k++)
@@ -251,13 +214,6 @@ void approve_reject_loans(int socket_fd, int number)
                 write(fd_emp, &employees[number], sizeof(struct BankEmployee));
 
                 write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-
-                // Release locks
-                lock.l_type = F_UNLCK;
-                fcntl(fd_loan, F_SETLKW, &lock);
-                fcntl(fd_emp, F_SETLKW, &lock);
-                fcntl(fd_cust, F_SETLKW, &lock);
-
                 break;
             }
         }
@@ -268,9 +224,10 @@ void approve_reject_loans(int socket_fd, int number)
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
     }
 
-    close(fd_loan);
-    close(fd_emp);
-    close(fd_cust);
+    unlock_Employee1(socket_fd,fd_emp,number);
+    unlock_Customer1(socket_fd,fd_cust,m);
+
+
 }
 
 void view_assigned_loans(int socket_fd, int number)
@@ -374,7 +331,7 @@ int is_loan_Unique(int fd, int a, int last)
     {
         if (a == loan_assignment[i].loanId)
         {
-            if (loan_assignment[i].loanStatus == 0) // Loan not yet assigned to any employee
+            if (loan_assignment[i].loanStatus == 0) 
                 return i;
         }
     }
@@ -529,17 +486,17 @@ void assign_loan_applications(int socket_fd)
                         }
                         employee_found = 1;
 
-                        int l = lock_Employee(socket_fd, fd, i);
+                        // int l = lock_Employee(socket_fd, fd, i);
 
-                        if (l == 0)
-                        {
-                            strcpy(write_buffer, "\nCannot currently assign loan to Employee ");
-                            strcat(write_buffer, read_buffer);
-                            strcat(write_buffer, "%");
-                            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
-                            memset(write_buffer, 0, sizeof(write_buffer));
-                            break;
-                        }
+                        // if (l == 0)
+                        // {
+                        //     strcpy(write_buffer, "\nCannot currently assign loan to Employee ");
+                        //     strcat(write_buffer, read_buffer);
+                        //     strcat(write_buffer, "%");
+                        //     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+                        //     memset(write_buffer, 0, sizeof(write_buffer));
+                        //     break;
+                        // }
 
                         int a = -1;
                         for (int j = 0; j < 10; j++)
@@ -1066,37 +1023,37 @@ void add_customer(int socket_fd)
     strcpy(new_customer.customer_name,read_buffer);
     memset(read_buffer, 0, sizeof(read_buffer));
 
-    while(1)
-    {
-            strcpy(write_buffer,"\nEnter New Customer Account No. :- ");
-            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-            memset(write_buffer, 0, sizeof(write_buffer));
-            read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
-            int acc = atoi(read_buffer);
-            memset(read_buffer, 0, sizeof(read_buffer));
-            if (acc == 0)
-            {
-                strcpy(write_buffer, "\n Try something different%");
-                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-                memset(write_buffer, 0, sizeof(write_buffer));
-                continue;  
-            }
-            // memset(read_buffer, 0, sizeof(read_buffer));
-            // printf("%d",a);
-            int a = is_acc_Unique(fd,acc);
-            if(a == 1)
-            {
-                new_customer.acc_no = acc;
-                break;
-            }
+    // while(1)
+    // {
+    //         strcpy(write_buffer,"\nEnter New Customer Account No. :- ");
+    //         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //         memset(write_buffer, 0, sizeof(write_buffer));
+    //         read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+    //         int acc = atoi(read_buffer);
+    //         memset(read_buffer, 0, sizeof(read_buffer));
+    //         if (acc == 0)
+    //         {
+    //             strcpy(write_buffer, "\n Try something different%");
+    //             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //             memset(write_buffer, 0, sizeof(write_buffer));
+    //             continue;  
+    //         }
+    //         // memset(read_buffer, 0, sizeof(read_buffer));
+    //         // printf("%d",a);
+    //         int a = is_acc_Unique(fd,acc);
+    //         if(a == 1)
+    //         {
+    //             new_customer.acc_no = acc;
+    //             break;
+    //         }
 
-            strcpy(write_buffer,"\n");
-            strcat(write_buffer,read_buffer);
-            strcat(write_buffer," Try something different.%");
-            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-            memset(write_buffer, 0, sizeof(write_buffer));
+    //         strcpy(write_buffer,"\n");
+    //         strcat(write_buffer,read_buffer);
+    //         strcat(write_buffer," Try something different.%");
+    //         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //         memset(write_buffer, 0, sizeof(write_buffer));
 
-    }
+    // }
 
     // while(1)
     // {
@@ -1211,6 +1168,10 @@ void add_customer(int socket_fd)
     {
         new_customer.transaction[i] = -1;
     }
+
+    int file_size = lseek(fd, 0, SEEK_END);
+    int new_acc_no = (file_size / sizeof(struct Customer)) + 1;
+    new_customer.acc_no = new_acc_no;
 
     write(fd,&new_customer,sizeof(new_customer));
 
@@ -1614,7 +1575,7 @@ void login_employee(int socket_fd)
         {
 
             memset(write_buffer, 0, sizeof(write_buffer));
-            strcpy(write_buffer, "\n------------Employee Menu------------\n1. Add New Customer\n2. Modify Customer Details\n3. Approve/Reject Loans\n4. View Assigned Loan Applications\n5. Change Password\n6. Logout\n\nEnter your choice:");
+            strcpy(write_buffer, "\n------------Employee Menu------------\n1. Add New Customer\n2. Modify Customer Details\n3. Approve/Reject Loans\n4. View Assigned Loan Applications\n5. Change Password\n6. Logout\n#. Exit\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
             // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  // Fix here
             memset(write_buffer, 0, sizeof(write_buffer));

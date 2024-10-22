@@ -221,37 +221,37 @@ void add_employee(int socket_fd)
     strcpy(new_employee.employee_name,read_buffer);
     memset(read_buffer, 0, sizeof(read_buffer));
 
-    while(1)
-    {
-            strcpy(write_buffer,"\nEnter New Employee ID :- ");
-            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-            memset(write_buffer, 0, sizeof(write_buffer));
-            read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
-            int z = atoi(read_buffer);
-            if(z == 0)
-            {
-                strcpy(write_buffer,"\n");
-                strcat(write_buffer,"Invalid ID.Try something Different.%");
-                write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-                memset(write_buffer, 0, sizeof(write_buffer));
-                continue;
-            }
-            int a = is_ID_Unique(fd,read_buffer);
+    // while(1)
+    // {
+    //         strcpy(write_buffer,"\nEnter New Employee ID :- ");
+    //         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //         memset(write_buffer, 0, sizeof(write_buffer));
+    //         read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
+    //         int z = atoi(read_buffer);
+    //         if(z == 0)
+    //         {
+    //             strcpy(write_buffer,"\n");
+    //             strcat(write_buffer,"Invalid ID.Try something Different.%");
+    //             write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //             memset(write_buffer, 0, sizeof(write_buffer));
+    //             continue;
+    //         }
+    //         int a = is_ID_Unique(fd,read_buffer);
 
-            if(a == 1)
-            {
-                strcpy(new_employee.id,read_buffer);
-                memset(read_buffer, 0, sizeof(read_buffer));
-                break;
-            }
+    //         if(a == 1)
+    //         {
+    //             strcpy(new_employee.id,read_buffer);
+    //             memset(read_buffer, 0, sizeof(read_buffer));
+    //             break;
+    //         }
 
-            strcpy(write_buffer,"\n");
-            strcat(write_buffer,read_buffer);
-            strcat(write_buffer," ID is already been used. Try something different%");
-            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-            memset(write_buffer, 0, sizeof(write_buffer));
+    //         strcpy(write_buffer,"\n");
+    //         strcat(write_buffer,read_buffer);
+    //         strcat(write_buffer," ID is already been used. Try something different%");
+    //         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    //         memset(write_buffer, 0, sizeof(write_buffer));
 
-    }
+    // }
 
     while(1)
     {
@@ -363,10 +363,18 @@ void add_employee(int socket_fd)
     {
         new_employee.loan[i] = -1;
     }
-    // char employee_data[500];
-    // snprintf(employee_data, sizeof(employee_data), "%s %s %s %s %s %d\n",new_employee.employee_name, new_employee.id,new_employee.role, new_employee.username,new_employee.password, new_employee.total_loans);
-    // write(fd, employee_data, strlen(employee_data));
-    // lseek(fd,0,SEEK_END);
+
+
+
+    int file_size = lseek(fd,0,SEEK_END);
+
+    // struct Feedback feed;
+    int new_id = (file_size/sizeof(struct BankEmployee))+1;
+
+    sprintf(new_employee.id, "%d", new_id);
+
+    // feed.review = false;
+
     write(fd,&new_employee,sizeof(new_employee));
 
     strcpy(write_buffer,"\n\n New Employee Added Successfully%");
@@ -1012,9 +1020,9 @@ void login_admin(int socket_fd)
         while (1) 
         {
             memset(write_buffer, 0, sizeof(write_buffer));
-            strcpy(write_buffer, "\n------------Admin Menu------------\n1. Add New Bank Employee\n2. Modify Customer/Employee Details\n3. Manage User Roles\n4. Change Password\n5. Logout\n\nEnter your choice:");
+            strcpy(write_buffer, "\n------------Admin Menu------------\n1. Add New Bank Employee\n2. Modify Customer/Employee Details\n3. Manage User Roles\n4. Change Password\n5. Logout\n#. Exit\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
-            // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  // Fix here
+            // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
             memset(write_buffer, 0, sizeof(write_buffer));
 
             read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));

@@ -59,8 +59,9 @@ struct Transaction
     int transaction_id;
     int customer_account_no;
     float amount;
-    int transaction_type;
-    // time_t transaction_time;
+    int transaction_type; // 1 Deposit // 2 Withdraw // 3 Loan // 4 Transfer Money - Sender's end // 5 Transfer Money - Receiver's end 
+    time_t transaction_time;
 };
 
 #endif // BANK_STRUCTURES_H
+ 

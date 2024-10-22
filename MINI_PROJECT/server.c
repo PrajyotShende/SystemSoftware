@@ -26,7 +26,7 @@ void connection(int fd)
     {
         
 
-        int write_bytes = write(fd,"\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n4. Exit\n\nEnter Your Choice",strlen("\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n4. Exit\n\nEnter Your Choice"));
+        int write_bytes = write(fd,"\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n#. Exit\n\nEnter Your Choice",strlen("\nWho would you like to login as:\n\n1. Admin\n2. Employee\n3. Customer\n4. Exit\n\nEnter Your Choice"));
         
         if(write_bytes == -1)
         {
@@ -48,7 +48,19 @@ void connection(int fd)
             }
             else
             {
+
+                if (strncmp(buffer, "#", 1) == 0) 
+                {
+                    printf("Received '#' from client. Closing connection.\n");
+                    break; // Exit the loop to close the connection
+                }
+
                 choice = atoi(buffer);
+                if (choice < 1 || choice > 4) 
+                {
+                    write(fd, "\nInvalid input! Please enter a valid option (1-4).", strlen("\nInvalid input! Please enter a valid option (1-4)."));
+                    continue; 
+                }
                 switch (choice)
                 {
                     case 1:
@@ -60,9 +72,6 @@ void connection(int fd)
                     case 3:
                         login_customer(fd);
                         break;
-                    case 4:
-                            return;
-                            break;
                     default:
                         ptr++;
                         return;
