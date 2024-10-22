@@ -1654,7 +1654,7 @@ void login_employee(int socket_fd)
         {
 
             memset(write_buffer, 0, sizeof(write_buffer));
-            strcpy(write_buffer, "\n------------Manager Menu------------\n1. Activate/Deactivate Customers\n2. Assign Loan Application Processes to Employees\n3. Review Customer Feedback\n4. Change Password\n5. Logout\n\nEnter your choice:");
+            strcpy(write_buffer, "\n------------Manager Menu------------\n1. Activate/Deactivate Customers\n2. Assign Loan Application Processes to Employees\n3. Review Customer Feedback\n4. Change Password\n5. Logout\n#. Exit\n\nEnter your choice:");
             write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
             // write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  // Fix here
             memset(write_buffer, 0, sizeof(write_buffer));
