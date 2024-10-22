@@ -4,13 +4,89 @@
 #include "common1.h"
 #include "bank_structures.h"
 
-
-void View_Transaction_History(socket_fd)
+void View_Transaction_History(int socket_fd, int number)
 {
+    int write_bytes;
+    char write_buffer[1000];
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    int fd = open("transactions.txt", O_RDWR);
+    int fd1 = open("customers.txt", O_RDWR);
+
+    struct Transaction view[1000];
+    struct Customer customer[100];
+
+    read(fd1, &customer, sizeof(customer));
+    read(fd, &view, sizeof(view));
+
+    char temp[1000];
+
+    int a = customer[number].last_transaction; 
+
+    strcpy(write_buffer,"\nLast 10 latest transactions are :-% ");
+    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+    memset(write_buffer, 0, sizeof(write_buffer));
     
+    for(int i=0; i<10; i++)
+    {
+        int b = customer[number].transaction[a];
+
+        if(b != -1)
+        {
+            for(int j=0;j<1000;j++)
+            {
+                if(view[j].transaction_id == b)
+                {
+                        strcpy(write_buffer,"\nT_Id : ");
+                        sprintf(temp, "%d\n", view[j].transaction_id);
+                        strcat(write_buffer,temp);
+                        memset(temp, 0, sizeof(temp));
+                        strcat(write_buffer,"Amount : ");
+                        sprintf(temp, "%f\n", view[j].amount);
+                        strcat(write_buffer,temp);
+                        memset(temp, 0, sizeof(temp));
+                        switch (view[j].transaction_type) 
+                        {
+                            case 1:
+                                strcat(write_buffer, "Type: Deposit");
+                                break;
+                            case 2:
+                                strcat(write_buffer, "Type: Withdraw");
+                                break;
+                            case 3:
+                                strcat(write_buffer, "Type: Sender");
+                                break;
+                            case 4:
+                                strcat(write_buffer, "Type: Receiver");
+                                break;
+                            case 5:
+                                strcat(write_buffer, "Type: Loan");
+                                break;
+                        }
+                        char *time_str = ctime(&view[j].transaction_time);
+                        time_str[strlen(time_str) - 1] = '\0'; // Remove newline from ctime
+                        strcat(write_buffer, "\nTime: ");
+                        strcat(write_buffer, time_str);
+                        // strcat(write_buffer, "\n");
+                        strcat(write_buffer,"%");
+                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
+                        memset(write_buffer, 0, sizeof(write_buffer));
+                        break;
+                }
+            }
+        }
+
+        // b = (b + 1) % 10;
+        a = (a - 1 + 10) % 10; 
+        // a = (a + 1) % 10;
+
+
+    }
+
+
+
+    return;
 }
-
-
 
 void Apply_For_Loan(int socket_fd,int number)
 {
@@ -271,12 +347,12 @@ void Transfer_Money(int socket_fd,int number)
                         }
 
                         credentials[number].balance -= money_withdrawed;
-                        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
-                        write(fd, &credentials[number], sizeof(struct Customer));
+                        // lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+                        // write(fd, &credentials[number], sizeof(struct Customer));
 
                         credentials[i].balance += money_withdrawed;
-                        lseek(fd, i * sizeof(struct Customer), SEEK_SET);
-                        write(fd, &credentials[i], sizeof(struct Customer));
+                        // lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                        // write(fd, &credentials[i], sizeof(struct Customer));
 
                         strcpy(write_buffer, "\nAccount balance after sending money :- ");
                         sprintf(temp_buffer, "%.2f", credentials[number].balance);
@@ -284,6 +360,61 @@ void Transfer_Money(int socket_fd,int number)
                         strcat(write_buffer, "%");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                         memset(write_buffer, 0, sizeof(write_buffer));
+
+                        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR,0666);
+                        struct Transaction money_sent;
+                        read(fd_transaction,&money_sent,sizeof(money_sent));
+
+                        int f = lseek(fd_transaction,0,SEEK_END);
+                        money_sent.amount = money_withdrawed;
+                        money_sent.customer_account_no = number + 1;
+                        money_sent.transaction_type = 3;
+                        money_sent.transaction_time = time(NULL);
+                        money_sent.transaction_id = (f/sizeof(struct Transaction)) + 1;
+                        write(fd_transaction, &money_sent, sizeof(money_sent));
+
+                        if (credentials[number].last_transaction == -1) 
+                        {
+                            credentials[number].last_transaction = 0;
+                            credentials[number].transaction[0] = money_sent.transaction_id;
+                        } 
+                        else 
+                        {
+                            int last_index = credentials[number].last_transaction;
+                            credentials[number].transaction[(last_index + 1) % 10] = money_sent.transaction_id;
+                            credentials[number].last_transaction = (last_index + 1) % 10;
+                        }
+
+                        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+                        write(fd, &credentials[number], sizeof(struct Customer));
+
+                        struct Transaction money_received;
+                        read(fd_transaction,&money_received,sizeof(money_received));
+
+                        int g = lseek(fd_transaction,0,SEEK_END);
+                        money_received.amount = money_withdrawed;
+                        money_received.customer_account_no = i + 1;
+                        money_received.transaction_type = 4;
+                        money_received.transaction_time = time(NULL);
+                        money_received.transaction_id = (g/sizeof(struct Transaction)) + 1;
+                        write(fd_transaction, &money_received, sizeof(money_received));
+
+                        if (credentials[i].last_transaction == -1) 
+                        {
+                            credentials[i].last_transaction = 0;
+                            credentials[i].transaction[0] = money_received.transaction_id;
+                        } 
+                        else 
+                        {
+                            int last_index = credentials[i].last_transaction;
+                            credentials[i].transaction[(last_index + 1) % 10] = money_received.transaction_id;
+                            credentials[i].last_transaction = (last_index + 1) % 10;
+                        }
+
+                        lseek(fd, i * sizeof(struct Customer), SEEK_SET);
+                        write(fd, &credentials[i], sizeof(struct Customer));
+                        
+                        close(fd_transaction);                        
 
                         close(fd);
                         return;
@@ -333,7 +464,7 @@ void View_Account_Balance(int socket_fd,int number)
     return;
 }
 
-void Deposit_Money(int socket_fd,int number)
+void Deposit_Money(int socket_fd, int number)
 {
     int write_bytes, read_bytes;
     char read_buffer[1000], write_buffer[1000];
@@ -342,62 +473,88 @@ void Deposit_Money(int socket_fd,int number)
 
     struct Customer credentials[100];
 
-    int fd = open("customers.txt",O_RDWR);
-    
-    lseek(fd, 0, SEEK_SET);  
-    int b = read(fd, &credentials, sizeof(credentials));
-
-    if (b == -1) 
-    {
-        perror("Error reading file");
+    int fd = open("customers.txt", O_RDWR);
+    if (fd == -1) {
+        perror("Error opening customer file");
         return;
     }
+
+    lseek(fd, 0, SEEK_SET);
+    int b = read(fd, &credentials, sizeof(credentials));
+    if (b == -1) {
+        perror("Error reading file");
+        close(fd);
+        return;
+    }
+
     char temp_buffer[50];
-    
-    strcpy(write_buffer,"\nAccount balance :- ");
+    strcpy(write_buffer, "\nAccount balance :- ");
     sprintf(temp_buffer, "%.2f", credentials[number].balance);
     strcat(write_buffer, temp_buffer);
-    strcat(write_buffer,"%");
-    write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+    strcat(write_buffer, "%");
+    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
     memset(write_buffer, 0, sizeof(write_buffer));
 
-
-    while(1)
+    while (1)
     {
-        strcpy(write_buffer,"\nEnter Amount of money you would like to deposit");
-        write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+        strcpy(write_buffer, "\nEnter Amount of money you would like to deposit");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
         memset(write_buffer, 0, sizeof(write_buffer));
+
         read_bytes = read(socket_fd, read_buffer, sizeof(read_buffer));
         float money_deposited = atof(read_buffer);
         memset(read_buffer, 0, sizeof(read_buffer));
-        if(money_deposited <= 0)
-                {
-                    strcpy(write_buffer, "\n Enter a no. greater than 0%");
-                    write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
-                    memset(write_buffer, 0, sizeof(write_buffer));
-                    continue;  
-                }
-        
+
+        if (money_deposited <= 0) {
+            strcpy(write_buffer, "\n Enter a number greater than 0%");
+            write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
+            memset(write_buffer, 0, sizeof(write_buffer));
+            continue;
+        }
+
         credentials[number].balance += money_deposited;
-        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
-        write(fd, &credentials[number], sizeof(struct Customer));
-        char temp_buffer[50];
-        strcpy(write_buffer,"\nAccount balance after depositing :- ");
+
+        strcpy(write_buffer, "\nAccount balance after depositing :- ");
         sprintf(temp_buffer, "%.2f", credentials[number].balance);
         strcat(write_buffer, temp_buffer);
-        strcat(write_buffer,"%");
-        write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));
+        strcat(write_buffer, "%");
+        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
         memset(write_buffer, 0, sizeof(write_buffer));
 
-        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
+        int fd_transaction = open("transactions.txt", O_CREAT | O_RDWR, 0666);
+        if (fd_transaction == -1) {
+            perror("Error opening transaction file");
+            close(fd);
+            return;
+        }
 
+        struct Transaction deposit_trans;
+        int f = lseek(fd_transaction, 0, SEEK_END);
+        deposit_trans.transaction_id = (f / sizeof(struct Transaction)) + 1;
+        deposit_trans.amount = money_deposited;
+        deposit_trans.customer_account_no = number + 1;
+        deposit_trans.transaction_type = 1;
+        deposit_trans.transaction_time = time(NULL);
 
+        write(fd_transaction, &deposit_trans, sizeof(deposit_trans));
 
+        if (credentials[number].last_transaction == -1) {
+            credentials[number].last_transaction = 0;
+            credentials[number].transaction[0] = deposit_trans.transaction_id;
+        } else {
+            int last_index = credentials[number].last_transaction;
+            credentials[number].transaction[(last_index + 1) % 10] = deposit_trans.transaction_id;
+            credentials[number].last_transaction = (last_index + 1) % 10;
+        }
+
+        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+        write(fd, &credentials[number], sizeof(struct Customer));
+
+        close(fd_transaction);
+        close(fd);
 
         return;
     }
-
-    
 
     return;
 }
@@ -467,8 +624,8 @@ void Withdraw_Money(int socket_fd, int number)
         }
 
         credentials[number].balance -= money_withdrawed;
-        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
-        write(fd, &credentials[number], sizeof(struct Customer));
+        // lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+        // write(fd, &credentials[number], sizeof(struct Customer));
 
         strcpy(write_buffer, "\nAccount balance after withdrawing :- ");
         sprintf(temp_buffer, "%.2f", credentials[number].balance);
@@ -477,7 +634,31 @@ void Withdraw_Money(int socket_fd, int number)
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
         memset(write_buffer, 0, sizeof(write_buffer));
 
-        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
+        int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR,0666);
+        struct Transaction deposit_trans;
+        read(fd_transaction,&deposit_trans,sizeof(deposit_trans));
+
+        int f = lseek(fd_transaction,0,SEEK_END);
+        deposit_trans.amount = money_withdrawed;
+        deposit_trans.customer_account_no = number + 1;
+        deposit_trans.transaction_type = 2;
+        deposit_trans.transaction_time = time(NULL);
+        deposit_trans.transaction_id = (f/sizeof(struct Transaction)) + 1;
+        write(fd_transaction, &deposit_trans, sizeof(deposit_trans));
+
+        if (credentials[number].last_transaction == -1) {
+            credentials[number].last_transaction = 0;
+            credentials[number].transaction[0] = deposit_trans.transaction_id;
+        } else {
+            int last_index = credentials[number].last_transaction;
+            credentials[number].transaction[(last_index + 1) % 10] = deposit_trans.transaction_id;
+            credentials[number].last_transaction = (last_index + 1) % 10;
+        }
+
+        lseek(fd, number * sizeof(struct Customer), SEEK_SET);
+        write(fd, &credentials[number], sizeof(struct Customer));
+        
+        close(fd_transaction);
 
 
         close(fd);
@@ -733,29 +914,29 @@ void login_customer(int socket_fd)
             {
                 case 1:
                         View_Account_Balance(socket_fd,number);
-                    break;
+                        break;
                 case 2:
                         Deposit_Money(socket_fd,number);
-                    break;
+                        break;
                 case 3:
                         Withdraw_Money(socket_fd,number);
-                    break;
+                        break;
                 case 4:
                         Transfer_Money(socket_fd,number);
-                    break;
+                        break;
                 case 5:
                         Apply_For_Loan(socket_fd,number);
-                    break;
+                        break;
                 case 6:
                         changePassword_customer(socket_fd, fd, number);
                         unlock_Customer2(socket_fd, fd, number);
-                    return;
+                        return;
                 case 7:
                         Add_Feedback(socket_fd);
-                    break;
+                        break;
                 case 8:
-                        View_Transaction_History(socket_fd);
-                    break;
+                        View_Transaction_History(socket_fd,number);
+                        break;
                 case 9:
                         unlock_Customer2(socket_fd, fd, number);
                         strcpy(write_buffer, "\nCustomer logged out%");

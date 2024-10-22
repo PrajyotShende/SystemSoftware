@@ -23,9 +23,6 @@ int lock_Customer(int socket_fd,int fd, int number);
 void unlock_Customer(int socket_fd,int fd, int number);
 
 
-
-
-
 int lock_Customer(int socket_fd,int fd, int number) 
 {
     int write_bytes, read_bytes;

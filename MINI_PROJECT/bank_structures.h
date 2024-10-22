@@ -35,6 +35,7 @@ struct Customer
     char username[15];
     char password[15];
     int transaction[15];
+    int last_transaction;
 };
 
 
@@ -59,7 +60,7 @@ struct Transaction
     int transaction_id;
     int customer_account_no;
     float amount;
-    int transaction_type; // 1 Deposit // 2 Withdraw // 3 Loan // 4 Transfer Money - Sender's end // 5 Transfer Money - Receiver's end 
+    int transaction_type; // 1 Deposit // 2 Withdraw //3 Transfer Money - Sender's end // 4 Transfer Money - Receiver's end // 3 Loan Approval 
     time_t transaction_time;
 };
 

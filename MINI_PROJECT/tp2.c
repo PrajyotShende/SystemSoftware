@@ -37,6 +37,7 @@ int main()
         printf("Loan ID: %d\n", credentials[i].loanID);
         printf("Username: %.14s\n", credentials[i].username);
         printf("Password: %.14s\n", credentials[i].password);
+        printf("Last transaction: %d.\n", credentials[i].last_transaction);
 
         printf("Transactions: ");
         // for (int j = 0; j < 15; j++)

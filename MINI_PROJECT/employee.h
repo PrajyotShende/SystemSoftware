@@ -179,6 +179,34 @@ void approve_reject_loans(int socket_fd, int number)
                             customers[k].loanID = -1;
                             lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
                             write(fd_cust, &customers[k], sizeof(struct Customer));
+
+                            int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR,0666);
+                            struct Transaction loan_approval;
+                            read(fd_transaction,&loan_approval,sizeof(loan_approval));
+
+                            int f = lseek(fd_transaction,0,SEEK_END);
+                            loan_approval.amount = loans[j].amount;
+                            loan_approval.customer_account_no = customers[k].acc_no;
+                            loan_approval.transaction_type = 5;
+                            loan_approval.transaction_time = time(NULL);
+                            loan_approval.transaction_id = (f/sizeof(struct Transaction)) + 1;
+                            write(fd_transaction, &loan_approval, sizeof(loan_approval));
+
+                            if (customers[k].last_transaction == -1) 
+                            {
+                                customers[k].last_transaction = 0;
+                                customers[k].transaction[0] = loan_approval.transaction_id;
+                            } 
+                            else 
+                            {
+                                int last_index = customers[k].last_transaction;
+                                customers[k].transaction[(last_index + 1) % 10] = loan_approval.transaction_id;
+                                customers[k].last_transaction = (last_index + 1) % 10;
+                            }
+
+                            lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
+                            write(fd_cust, &customers[k], sizeof(struct Customer));
+
                             break;
                         }
                     }
@@ -224,7 +252,8 @@ void approve_reject_loans(int socket_fd, int number)
         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
     }
 
-    unlock_Employee1(socket_fd,fd_emp,number);
+    // unlock_Employee1(socket_fd,fd_emp,number);
+
     unlock_Customer1(socket_fd,fd_cust,m);
 
 
@@ -1161,6 +1190,8 @@ void add_customer(int socket_fd)
     memset(read_buffer, 0, sizeof(read_buffer));
 
     new_customer.loanID = -1;
+
+    new_customer.last_transaction = -1;
 
     new_customer.active = false;
 

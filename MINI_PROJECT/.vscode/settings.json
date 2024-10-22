@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "1": "cpp",
         "ostream": "cpp",
         "iostream": "cpp",
         "common1.h": "c",
