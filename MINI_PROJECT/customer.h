@@ -4,6 +4,54 @@
 #include "common1.h"
 #include "bank_structures.h"
 
+
+void lock_Customer3(int socket_fd,int fd, int number) 
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct flock Admin_WRITELOCK;
+    Admin_WRITELOCK.l_type = F_WRLCK;
+    Admin_WRITELOCK.l_whence = SEEK_SET;
+    Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
+    Admin_WRITELOCK.l_len = sizeof(struct Customer);
+
+    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
+
+    if (locking == -1) 
+    {
+        // return 0;
+    }
+    
+    // return 1;
+}
+
+void unlock_Customer3(int socket_fd,int fd, int number)
+{
+    int write_bytes, read_bytes;
+    char read_buffer[1000], write_buffer[1000];
+    memset(read_buffer, 0, sizeof(read_buffer));
+    memset(write_buffer, 0, sizeof(write_buffer));
+
+    struct flock unlock_admin;
+    unlock_admin.l_type = F_UNLCK;
+    unlock_admin.l_whence = SEEK_SET;
+    unlock_admin.l_start = number * sizeof(struct Customer);
+    unlock_admin.l_len = sizeof(struct Customer);
+
+    int unlocking = fcntl(fd, F_SETLKW, &unlock_admin);
+
+    if (unlocking == -1)
+    {
+        printf("Error in unlocking the admin");
+        exit(0);
+    }
+
+
+}
+
 void View_Transaction_History(int socket_fd, int number)
 {
     int write_bytes;
@@ -64,7 +112,7 @@ void View_Transaction_History(int socket_fd, int number)
                                 break;
                         }
                         char *time_str = ctime(&view[j].transaction_time);
-                        time_str[strlen(time_str) - 1] = '\0'; // Remove newline from ctime
+                        time_str[strlen(time_str) - 1] = '\0'; 
                         strcat(write_buffer, "\nTime: ");
                         strcat(write_buffer, time_str);
                         // strcat(write_buffer, "\n");
@@ -229,9 +277,11 @@ void Transfer_Money(int socket_fd,int number)
     int fd = open("customers.txt", O_RDWR);
     int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR);
 
-    
+    lock_Customer3(socket_fd,fd,number);
     lseek(fd, 0, SEEK_SET);  
     int b = read(fd, &credentials, sizeof(credentials));
+    unlock_Customer3(socket_fd,fd,number);
+
 
     if (b == -1) 
     {
@@ -292,15 +342,15 @@ void Transfer_Money(int socket_fd,int number)
                 
                 if(credentials[i].acc_no == acc)
                 {
-                    int l = lock_Customer1(socket_fd,fd, i);
-                    if(l == 0) 
-                    {
-                        strcpy(write_buffer,"\nCannot currently Send Money to Customer with Account no. ");
-                        strcat(write_buffer,read_buffer);
-                        strcat(write_buffer,"%");
-                        write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
-                        return;
-                    }
+                    // int l = lock_Customer1(socket_fd,fd, i);
+                    // if(l == 0) 
+                    // {
+                    //     strcpy(write_buffer,"\nCannot currently Send Money to Customer with Account no. ");
+                    //     strcat(write_buffer,read_buffer);
+                    //     strcat(write_buffer,"%");
+                    //     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));   
+                    //     return;
+                    // }
                     memset(read_buffer, 0, sizeof(read_buffer));
                     while(1)
                     {
@@ -346,11 +396,15 @@ void Transfer_Money(int socket_fd,int number)
                             continue;  
                         }
 
+                        lock_Customer3(socket_fd,fd,number);
+                        lseek(fd, 0, SEEK_SET);  
+                        read(fd, &credentials, sizeof(credentials));
+
                         credentials[number].balance -= money_withdrawed;
+
                         // lseek(fd, number * sizeof(struct Customer), SEEK_SET);
                         // write(fd, &credentials[number], sizeof(struct Customer));
 
-                        credentials[i].balance += money_withdrawed;
                         // lseek(fd, i * sizeof(struct Customer), SEEK_SET);
                         // write(fd, &credentials[i], sizeof(struct Customer));
 
@@ -361,10 +415,10 @@ void Transfer_Money(int socket_fd,int number)
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                         memset(write_buffer, 0, sizeof(write_buffer));
 
+
                         int fd_transaction = open("transactions.txt",O_CREAT|O_RDWR,0666);
                         struct Transaction money_sent;
                         read(fd_transaction,&money_sent,sizeof(money_sent));
-
                         int f = lseek(fd_transaction,0,SEEK_END);
                         money_sent.amount = money_withdrawed;
                         money_sent.customer_account_no = number + 1;
@@ -387,6 +441,13 @@ void Transfer_Money(int socket_fd,int number)
 
                         lseek(fd, number * sizeof(struct Customer), SEEK_SET);
                         write(fd, &credentials[number], sizeof(struct Customer));
+                        unlock_Customer3(socket_fd,fd,number);
+
+                        lock_Customer3(socket_fd,fd,i);
+                        lseek(fd, 0, SEEK_SET);  
+                        read(fd, &credentials, sizeof(credentials));
+                        credentials[i].balance += money_withdrawed;
+
 
                         struct Transaction money_received;
                         read(fd_transaction,&money_received,sizeof(money_received));
@@ -413,6 +474,8 @@ void Transfer_Money(int socket_fd,int number)
 
                         lseek(fd, i * sizeof(struct Customer), SEEK_SET);
                         write(fd, &credentials[i], sizeof(struct Customer));
+                        unlock_Customer3(socket_fd,fd,i);
+                        
                         
                         close(fd_transaction);                        
 
@@ -479,8 +542,11 @@ void Deposit_Money(int socket_fd, int number)
         return;
     }
 
+    lock_Customer3(socket_fd,fd,number);
     lseek(fd, 0, SEEK_SET);
     int b = read(fd, &credentials, sizeof(credentials));
+    unlock_Customer3(socket_fd,fd,number);
+
     if (b == -1) {
         perror("Error reading file");
         close(fd);
@@ -511,7 +577,12 @@ void Deposit_Money(int socket_fd, int number)
             memset(write_buffer, 0, sizeof(write_buffer));
             continue;
         }
+        
 
+        lock_Customer3(socket_fd,fd,number);
+
+        lseek(fd, 0, SEEK_SET);
+        int b = read(fd, &credentials, sizeof(credentials));
         credentials[number].balance += money_deposited;
 
         strcpy(write_buffer, "\nAccount balance after depositing :- ");
@@ -549,6 +620,8 @@ void Deposit_Money(int socket_fd, int number)
 
         lseek(fd, number * sizeof(struct Customer), SEEK_SET);
         write(fd, &credentials[number], sizeof(struct Customer));
+        unlock_Customer3(socket_fd,fd,number);
+
 
         close(fd_transaction);
         close(fd);
@@ -569,9 +642,11 @@ void Withdraw_Money(int socket_fd, int number)
     struct Customer credentials[100];
 
     int fd = open("customers.txt", O_RDWR);
-    
+
+    lock_Customer3(socket_fd,fd,number);    
     lseek(fd, 0, SEEK_SET);  
     int b = read(fd, &credentials, sizeof(credentials));
+    unlock_Customer3(socket_fd,fd,number);
 
     if (b == -1) 
     {
@@ -623,6 +698,9 @@ void Withdraw_Money(int socket_fd, int number)
             continue;  
         }
 
+        lock_Customer3(socket_fd,fd,number);    
+        lseek(fd, 0, SEEK_SET);  
+        read(fd, &credentials, sizeof(credentials));
         credentials[number].balance -= money_withdrawed;
         // lseek(fd, number * sizeof(struct Customer), SEEK_SET);
         // write(fd, &credentials[number], sizeof(struct Customer));
@@ -657,6 +735,8 @@ void Withdraw_Money(int socket_fd, int number)
 
         lseek(fd, number * sizeof(struct Customer), SEEK_SET);
         write(fd, &credentials[number], sizeof(struct Customer));
+        unlock_Customer3(socket_fd,fd,number);
+
         
         close(fd_transaction);
 
@@ -765,8 +845,13 @@ void changePassword_customer(int socket_fd,int fd, int number)
 
     strcpy(credentials[number].password, new_password);
 
-    lseek(fd, number * sizeof(struct BankEmployee), SEEK_SET);  
-    int write_result = write(fd, &credentials[number], sizeof(struct BankEmployee));
+    lseek(fd, number * sizeof(struct Customer), SEEK_SET);  
+    int write_result = write(fd, &credentials[number], sizeof(struct Customer));
+
+    int fd1 = open("customer_login.txt",O_RDWR,0644);
+    // lseek(fd1,0,SEEK_END);
+    lseek(fd1, number * sizeof(struct Customer), SEEK_SET);
+    write(fd1,&credentials[number],sizeof(credentials[number]));
 
     if (write_result == -1) 
     {
@@ -792,7 +877,7 @@ int Checking_login_credentials2(int socket_fd,const char *input_username, const 
 
     struct Customer credentials[100];
     
-    int fd = open("customers.txt", O_RDWR);
+    int fd = open("customer_login.txt", O_RDWR);
     
     if (fd == -1) 
     {
@@ -885,7 +970,7 @@ void login_customer(int socket_fd)
     strcpy(password, read_buffer);
     memset(read_buffer, 0, sizeof(read_buffer));
 
-    int fd = open("customers.txt", O_RDWR);
+    int fd = open("customer_login.txt", O_RDWR);
     if (fd == -1) 
     {
         perror("Error opening file");

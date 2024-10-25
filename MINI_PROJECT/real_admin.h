@@ -130,7 +130,7 @@ int lock_admin(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct LoginCredentials);
     Admin_WRITELOCK.l_len = sizeof(struct LoginCredentials);
 
-    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -371,8 +371,13 @@ void add_employee(int socket_fd)
     sprintf(new_employee.id, "%d", new_id);
 
     // feed.review = false;
-
+    lseek(fd,0,SEEK_END);
     write(fd,&new_employee,sizeof(new_employee));
+
+    int fd1 = open("employee_login.txt",O_RDWR,0644);
+    lseek(fd1,0,SEEK_END);
+    write(fd1,&new_employee,sizeof(new_employee));
+
 
     strcpy(write_buffer,"\n\n New Employee Added Successfully%");
     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
@@ -728,6 +733,9 @@ void Modify_Customer_Details(int socket_fd)
                         case 5:
                                 lseek(fd, i * sizeof(struct Customer), SEEK_SET);
                                 write(fd, &newcust[i], sizeof(struct Customer));
+                                int fd1 = open("customer_login.txt",O_RDWR,0644);
+                                lseek(fd1, i * sizeof(struct Customer), SEEK_SET);
+                                write(fd1, &newcust[i], sizeof(struct Customer));
                                 unlock_Customer(socket_fd,fd, i);
                                 return;
                         default:
@@ -823,6 +831,9 @@ void manage_User_Roles(int socket_fd)
 
                         lseek(fd, i * sizeof(struct BankEmployee), SEEK_SET);
                         write(fd, &new[i], sizeof(struct BankEmployee)); 
+                        int fd1 = open("employee_login.txt",O_RDWR,0644);
+                        lseek(fd1, i * sizeof(struct BankEmployee), SEEK_SET);  
+                        write(fd1,&new[i],sizeof(struct BankEmployee));
                         strcpy(write_buffer,"\nSuccessfully Changed role%");
                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
                         memset(write_buffer, 0, sizeof(write_buffer));

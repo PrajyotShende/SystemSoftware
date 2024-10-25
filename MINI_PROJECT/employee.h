@@ -170,11 +170,18 @@ void approve_reject_loans(int socket_fd, int number)
 
                 if (choice == 1)  
                 {
+                    // lock_Customer1(socket_fd,fd,number);
+                    // lseek(fd, 0, SEEK_SET);
+                    // int b = read(fd, &credentials, sizeof(credentials));
+
                     loans[j].loanStatus = 2;
                     for (int k = 0; k < 100; k++)
                     {
                         if (customers[k].acc_no == loans[j].customer_acc_no)
                         {
+                            lock_Customer1(socket_fd,fd_cust,k);
+                            lseek(fd_cust, 0, SEEK_SET);
+                            read(fd_cust, &customers, sizeof(customers));
                             customers[k].balance += loans[j].amount;
                             customers[k].loanID = -1;
                             lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
@@ -206,6 +213,8 @@ void approve_reject_loans(int socket_fd, int number)
 
                             lseek(fd_cust, k * sizeof(struct Customer), SEEK_SET);
                             write(fd_cust, &customers[k], sizeof(struct Customer));
+                            unlock_Customer1(socket_fd,fd_cust,k);
+
 
                             break;
                         }
@@ -858,6 +867,9 @@ void activate_deactivate_customers(int socket_fd)
                                         strcpy(write_buffer, "\nSuccessfully Deactivated the customer's account%");
                                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                                         memset(write_buffer, 0, sizeof(write_buffer));
+                                        int fd1 = open("customer_login.txt",O_RDWR,0644);
+                                        lseek(fd1, i * sizeof(struct Customer), SEEK_SET);
+                                        write(fd1, &newcust[i], sizeof(struct Customer));
                                         unlock_Customer1(socket_fd, fd, i);                    
                                         return;
                                     }
@@ -881,6 +893,9 @@ void activate_deactivate_customers(int socket_fd)
                                         write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));
                                         memset(write_buffer, 0, sizeof(write_buffer));
                                         unlock_Customer1(socket_fd, fd, i);
+                                        int fd1 = open("customer_login.txt",O_RDWR,0644);
+                                        lseek(fd1, i * sizeof(struct Customer), SEEK_SET);
+                                        write(fd1, &newcust[i], sizeof(struct Customer));
                                         return;
                                     }
                                 }
@@ -965,7 +980,7 @@ int lock_Employee1(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct BankEmployee);
     Admin_WRITELOCK.l_len = sizeof(struct BankEmployee);
 
-    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -1203,8 +1218,13 @@ void add_customer(int socket_fd)
     int file_size = lseek(fd, 0, SEEK_END);
     int new_acc_no = (file_size / sizeof(struct Customer)) + 1;
     new_customer.acc_no = new_acc_no;
-
+    lseek(fd,0,SEEK_END);
     write(fd,&new_customer,sizeof(new_customer));
+
+    int fd1 = open("customer_login.txt",O_RDWR,0644);
+    lseek(fd1,0,SEEK_END);
+    write(fd1,&new_customer,sizeof(new_customer));
+
 
     strcpy(write_buffer,"\n\n New Customer Added Successfully%");
     write_bytes = write(socket_fd, write_buffer, sizeof(write_buffer));  
@@ -1485,6 +1505,12 @@ void changePassword_Employee(int socket_fd,int fd, int number)
     lseek(fd, number * sizeof(struct BankEmployee), SEEK_SET);  
     int write_result = write(fd, &credentials[number], sizeof(struct BankEmployee));
 
+    int fd1 = open("employee_login.txt",O_RDWR,0644);
+    lseek(fd1, number * sizeof(struct BankEmployee), SEEK_SET);  
+    write(fd1,&credentials[number],sizeof(struct BankEmployee));
+
+    
+
     if (write_result == -1) 
     {
         perror("Error writing to file");
@@ -1509,7 +1535,7 @@ int Checking_login_credentials_Employee(int socket_fd,const char *input_username
 
     struct BankEmployee credentials[100];
     
-    int fd = open("employees.txt", O_RDWR);
+    int fd = open("employee_login.txt", O_RDWR);
     
     if (fd == -1) 
     {
@@ -1547,8 +1573,8 @@ int Checking_login_credentials_Employee(int socket_fd,const char *input_username
             {
                 memset(write_buffer, 0, sizeof(write_buffer));
                 strcpy(write_buffer,"\n");
-                // strcat(write_buffer,input_username);
-                strcat(write_buffer," Cannot currently  in$");
+                strcat(write_buffer,input_username);
+                strcat(write_buffer," is currently loged in$");
                 write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));    
                 memset(write_buffer, 0, sizeof(write_buffer));
                 close(fd);
@@ -1590,7 +1616,7 @@ void login_employee(int socket_fd)
     strcpy(password, read_buffer);
     memset(read_buffer, 0, sizeof(read_buffer));
 
-    int fd = open("employees.txt", O_RDWR);
+    int fd = open("employee_login.txt", O_RDWR);
     if (fd == -1) 
     {
         perror("Error opening file");

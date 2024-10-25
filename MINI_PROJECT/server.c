@@ -20,7 +20,7 @@ void connection(int fd)
     
     int choice;
     
-    int ptr = 0;
+    // int ptr = 0;
     
     while(1)
     {
@@ -73,15 +73,15 @@ void connection(int fd)
                         login_customer(fd);
                         break;
                     default:
-                        ptr++;
+                        // ptr++;
                         return;
                         break;
                 }
             }
-            if(ptr)
-            {
-                break;
-            }
+            // if(ptr)
+            // {
+            //     break;
+            // }
         }
     }
     printf("connection break\n");
