@@ -78,8 +78,8 @@ Output:
 Server socket created
 Binding to server socket successful!
 Listening for connections...
-Enter message from server to client: Hi server, I am client
-Data received from client: Hi client I am server
+Enter message from server to client: Hi client I am server
+Data received from client: Hi server, I am client 
 
 
 ==============================================================================================

@@ -58,8 +58,8 @@ Output:
 ./a.out 
 Socket successfully created
 Connected to server successfully
-Data received from server: Hi server, I am client
-Enter message for server: Hi client I am server
+Data received from server: Hi client I am server 
+Enter message for server: Hi server, I am client
 
 
 
