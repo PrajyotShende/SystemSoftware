@@ -759,7 +759,7 @@ int lock_Customer2(int socket_fd,int fd, int number)
     Admin_WRITELOCK.l_start = number * sizeof(struct Customer);
     Admin_WRITELOCK.l_len = sizeof(struct Customer);
 
-    int locking = fcntl(fd, F_SETLKW, &Admin_WRITELOCK);
+    int locking = fcntl(fd, F_SETLK, &Admin_WRITELOCK);
 
     if (locking == -1) 
     {
@@ -928,7 +928,7 @@ int Checking_login_credentials2(int socket_fd,const char *input_username, const 
                 memset(write_buffer, 0, sizeof(write_buffer));
                 strcpy(write_buffer,"\n");
                 strcat(write_buffer,input_username);
-                strcat(write_buffer," Cannot currently log in$");
+                strcat(write_buffer," is already logged in$");
                 write_bytes = write(socket_fd,write_buffer,sizeof(write_buffer));    
                 memset(write_buffer, 0, sizeof(write_buffer));
                 close(fd);
